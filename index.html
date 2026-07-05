@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>高睿暑假学习舱</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">睿</div>
+          <div>
+            <h1>高睿暑假学习舱</h1>
+            <p>八升九 · GIC / IG 预习</p>
+          </div>
+        </div>
+
+        <nav class="subject-nav" aria-label="科目导航">
+          <button class="subject-button active" data-subject="math">数学</button>
+          <button class="subject-button" data-subject="english">英语</button>
+          <button class="subject-button" data-subject="chinese">语文</button>
+          <button class="subject-button" data-subject="physics">物理</button>
+          <button class="subject-button" data-subject="chemistry">化学</button>
+          <button class="subject-button" data-subject="economics">经济</button>
+          <button class="subject-button" data-subject="history">历史</button>
+          <button class="subject-button" data-subject="morality">道法</button>
+          <button class="subject-button" data-subject="life">德育</button>
+        </nav>
+
+        <div class="sidebar-note">
+          <span>今日原则</span>
+          <strong>学一点，测一下，明早复核。</strong>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="date-line" id="dateLine"></p>
+            <h2 id="topGreeting">今天先把学习节奏跑起来</h2>
+          </div>
+          <div class="progress-card">
+            <span>暑假进度</span>
+            <strong id="progressDays">— / 56 天</strong>
+            <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+            <p class="streak-line" id="streakLine"></p>
+          </div>
+        </header>
+
+        <section class="panel week-panel">
+          <div class="section-title">
+            <h3>8 周作战图</h3>
+            <span>来自暑假计划</span>
+          </div>
+          <div class="week-strip" id="weekStrip"></div>
+          <div class="week-detail" id="weekDetail"></div>
+        </section>
+
+        <section class="dashboard-grid">
+          <section class="panel today-panel">
+            <div class="section-title">
+              <h3>今日任务</h3>
+              <span>完成后点亮</span>
+            </div>
+            <div class="task-list" id="taskList"></div>
+          </section>
+
+          <section class="panel map-panel">
+            <div class="section-title">
+              <h3>科目闯关地图</h3>
+              <span id="subjectSummary">数学 · 3 个知识点</span>
+            </div>
+            <div class="quest-map" id="questMap"></div>
+          </section>
+
+          <section class="panel lesson-panel">
+            <div class="lesson-header">
+              <div>
+                <span id="lessonSubject">数学</span>
+                <h3 id="lessonTitle">一次函数</h3>
+              </div>
+              <div class="lesson-actions">
+                <button class="ghost-button" id="playLesson">播放讲解</button>
+                <button class="ghost-button" id="speakLesson">朗读讲解</button>
+                <button class="ghost-button" id="markDone">标记已学</button>
+              </div>
+            </div>
+            <p class="one-line" id="lessonOneLine"></p>
+            <div class="narration-card">
+              <div class="narration-top">
+                <span id="animationLabel">分步讲解</span>
+                <div class="mini-progress"><div id="animationProgress"></div></div>
+              </div>
+              <p id="narrationText"></p>
+            </div>
+            <div class="concept-box" id="conceptBox"></div>
+            <h4 class="term-title">本节关键词</h4>
+            <div class="term-strip" id="termStrip"></div>
+            <div class="lesson-columns">
+              <div>
+                <h4>生活例子</h4>
+                <p id="lessonExample"></p>
+              </div>
+              <div>
+                <h4>易错提醒</h4>
+                <p id="mistakeText"></p>
+              </div>
+            </div>
+            <div class="review-block">
+              <h4>明天复核</h4>
+              <ul id="reviewPoints"></ul>
+            </div>
+          </section>
+
+          <section class="panel quiz-panel">
+            <div class="section-title">
+              <h3>今日小测</h3>
+              <span>提交后立刻判分</span>
+            </div>
+            <div id="quizBox"></div>
+            <button class="primary-button" id="submitQuiz">提交小测</button>
+            <p class="quiz-result" id="quizResult"></p>
+          </section>
+
+          <section class="panel review-panel">
+            <div class="section-title">
+              <h3>明早复核队列</h3>
+              <span>错题自动收集</span>
+            </div>
+            <ol id="reviewQueue"></ol>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
