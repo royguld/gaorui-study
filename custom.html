@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>个性化学习舱定制 · 按孩子情况自动排课</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        --bg: #f7fafc; --panel: #ffffff; --ink: #14283f; --muted: #64748b;
+        --line: #dbe5ee; --teal: #0f9f9a; --teal-soft: #e7f7f5;
+        --amber: #d88a18; --amber-soft: #fff4df;
+        --shadow: 0 18px 44px rgba(21, 45, 70, 0.09);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh;
+        background:
+          linear-gradient(rgba(20, 40, 63, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(20, 40, 63, 0.035) 1px, transparent 1px),
+          var(--bg);
+        background-size: 28px 28px;
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      .wrap { max-width: 980px; margin: 0 auto; padding: 28px 20px 70px; }
+      .top { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+      .brand { display: flex; align-items: center; gap: 12px; }
+      .brand-mark { width: 44px; height: 44px; display: grid; place-items: center; background: #f5b544; color: #10263b; border-radius: 8px; font-weight: 800; font-size: 20px; }
+      h1 { margin: 0; font-size: 23px; }
+      .sub { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+      .top-links { display: flex; gap: 8px; flex-wrap: wrap; }
+      .top-links a { color: #1f5d8f; text-decoration: none; font-size: 13px; background: #edf5ff; border-radius: 7px; padding: 9px 13px; }
+      .notice { background: var(--amber-soft); border: 1px solid #f2dfbd; border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #7a5510; line-height: 1.65; margin-bottom: 18px; }
+      .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px; }
+      .card h2 { margin: 0 0 4px; font-size: 18px; }
+      .card .step-tag { color: var(--teal); font-size: 12px; font-weight: 800; letter-spacing: 1px; }
+      .card p.tip { margin: 4px 0 14px; color: var(--muted); font-size: 13px; }
+      label { display: block; font-size: 13.5px; color: #33506b; margin-bottom: 12px; }
+      input[type="text"], textarea, select {
+        width: 100%; margin-top: 6px; border: 1px solid var(--line); border-radius: 7px;
+        padding: 10px 12px; font: inherit; font-size: 14px; color: var(--ink); background: #fbfdff;
+      }
+      textarea { resize: vertical; }
+      .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+      .btn { border: 0; border-radius: 7px; padding: 11px 16px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+      .btn-teal { background: var(--teal); color: #fff; }
+      .btn-dark { background: var(--ink); color: #fff; }
+      .btn-ghost { background: #edf5ff; color: #1f5d8f; }
+      .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+      .status { margin: 10px 0 0; font-size: 13px; color: var(--muted); line-height: 1.6; min-height: 20px; }
+      .status.ok { color: #1d7a4f; font-weight: 700; }
+      .status.bad { color: #b13c2e; font-weight: 700; }
+      .photo-drop { display: block; border: 2px dashed var(--line); border-radius: 8px; padding: 16px; text-align: center; color: var(--muted); font-size: 13px; cursor: pointer; background: #fbfdff; }
+      .photo-drop input { display: none; }
+      .thumbs { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+      .thumb { position: relative; width: 90px; height: 90px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+      .thumb img { width: 100%; height: 100%; object-fit: cover; }
+      .thumb button { position: absolute; top: 3px; right: 3px; border: 0; background: rgba(20, 40, 63, 0.75); color: #fff; border-radius: 5px; width: 20px; height: 20px; font-size: 12px; cursor: pointer; line-height: 1; }
+      .mode-tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+      .mode-tab { border: 1px solid var(--line); background: #f5f8fb; color: #33506b; border-radius: 999px; padding: 9px 16px; font-size: 13.5px; cursor: pointer; font-family: inherit; }
+      .mode-tab.active { background: var(--teal-soft); border-color: var(--teal); color: #087872; font-weight: 700; }
+      .mode-panel[hidden] { display: none; }
+      .result-box { margin-top: 14px; padding: 14px; background: var(--teal-soft); border: 1px solid #bfe8e3; border-radius: 8px; }
+      .result-box[hidden] { display: none; }
+      .result-box strong { display: block; margin-bottom: 8px; }
+      .result-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+      .result-actions a { text-decoration: none; }
+      .curr-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 6px; }
+      .curr-row label { flex: 1; min-width: 160px; margin-bottom: 0; }
+      @media (max-width: 700px) { .two, .three { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <div class="brand">
+          <div class="brand-mark">定</div>
+          <div>
+            <h1>个性化学习舱定制</h1>
+            <p class="sub">填孩子情况 → 自动分析薄弱点 → 生成有侧重的学习、复习、小测网页</p>
+          </div>
+        </div>
+        <div class="top-links">
+          <a href="./curriculum.html">教材包</a>
+          <a href="./index.html">高睿学习舱</a>
+        </div>
+      </div>
+
+      <div class="notice">
+        填得越具体，生成的课程越贴合孩子。生成的学习舱会根据<strong>学科长短处和成绩偏差</strong>自动调整：薄弱科目多排知识点、标注"补差重点"、小测更密集；优势科目少排、以巩固拔高为主。所有信息只在你的浏览器和你选择的 AI 之间传输，本页面不保存到任何服务器。
+      </div>
+
+      <!-- Step 1 孩子情况 -->
+      <div class="card">
+        <span class="step-tag">STEP 01</span>
+        <h2>孩子情况</h2>
+        <p class="tip">带 * 为必填，其余越详细越好。内容会自动保存在本机浏览器，下次打开不用重填。</p>
+        <div class="three">
+          <label>* 孩子姓名<input type="text" id="pName" placeholder="例如：小明" /></label>
+          <label>* 年龄 / 年级<input type="text" id="pGrade" placeholder="例如：13 岁 / 初一升初二" /></label>
+          <label>学习周期（天）<input type="text" id="pDays" value="30" /></label>
+        </div>
+        <label>* 目前学习状态说明<textarea id="pStatus" rows="3" placeholder="例如：上学期期末排名中游，学习主动性一般，做作业容易拖拉，需要每天有明确任务清单。"></textarea></label>
+        <label>* 学科长处与短处<textarea id="pStrength" rows="3" placeholder="例如：数学计算好但几何证明弱；语文阅读理解可以，作文偏弱；英语单词量不够，听力还行。"></textarea></label>
+        <label>成绩偏差说明<textarea id="pScores" rows="3" placeholder="例如：数学 85/100（班平均 90），英语 72/100（班平均 85，偏差最大），语文 88/100（正常）。"></textarea></label>
+        <label>补课目标（可选）<textarea id="pGoal" rows="2" placeholder="例如：一个月内把英语单词和数学几何补上来，开学摸底考进班级前 15。"></textarea></label>
+      </div>
+
+      <!-- Step 2 成绩单照片 + 教材包 -->
+      <div class="card">
+        <span class="step-tag">STEP 02</span>
+        <h2>成绩单照片与教材范围</h2>
+        <p class="tip">成绩单、试卷、错题本都可以拍照放进来（最多 4 张，自动压缩）。再选孩子所在年级的教材包，AI 会据此圈定知识点范围。</p>
+        <label class="photo-drop">
+          <input type="file" id="photoInput" accept="image/*" multiple />
+          <strong>点击上传成绩单 / 试卷照片</strong><br />支持 jpg / png，最多 4 张
+        </label>
+        <div class="thumbs" id="thumbs"></div>
+        <div class="curr-row">
+          <label>学段
+            <select id="stageSel">
+              <option value="primary">小学</option>
+              <option value="junior" selected>初中</option>
+              <option value="senior">高中</option>
+            </select>
+          </label>
+          <label>年级<select id="gradeSel"></select></label>
+          <button class="btn btn-ghost" id="addPackBtn" type="button">加入该年级教材包</button>
+        </div>
+        <label>补充资料（可选：作业清单、老师要求、错题文字）<textarea id="pMaterials" rows="6" placeholder="选了教材包会自动填在这里，也可以自己补充。"></textarea></label>
+      </div>
+
+      <!-- Step 3 生成 -->
+      <div class="card">
+        <span class="step-tag">STEP 03</span>
+        <h2>生成个性化学习舱</h2>
+        <div class="mode-tabs">
+          <button class="mode-tab active" data-mode="api" type="button">方式一：填 API Key 自动生成</button>
+          <button class="mode-tab" data-mode="paste" type="button">方式二：没有 Key，用任意 AI 中转</button>
+        </div>
+
+        <div class="mode-panel" id="apiPanel">
+          <p class="tip">使用阿里云通义千问 API（<a href="https://bailian.console.aliyun.com/" target="_blank" rel="noopener">百炼控制台</a>免费申请 Key）。有成绩单照片时自动使用视觉模型读取照片。Key 只在本次请求中发给阿里云，不会被本页面保存或上传到其他地方。</p>
+          <div class="two">
+            <label>通义千问 API Key<input type="text" id="apiKey" placeholder="sk-..." autocomplete="off" /></label>
+            <label>模型名（可改）<input type="text" id="modelName" placeholder="自动：有照片用 qwen-vl-plus，无照片用 qwen-plus" /></label>
+          </div>
+          <button class="btn btn-teal" id="genBtn" type="button">分析孩子情况并生成学习舱</button>
+        </div>
+
+        <div class="mode-panel" id="pastePanel" hidden>
+          <p class="tip">第 1 步：点下面按钮复制"完整分析提示词"，粘贴给任意 AI（通义 App、Kimi、豆包、ChatGPT 都行）；有成绩单照片的，把照片也一起发给它。第 2 步：把 AI 返回的 JSON 全文粘贴回下面输入框，点生成。</p>
+          <button class="btn btn-ghost" id="copyPromptBtn" type="button">第 1 步：复制完整分析提示词</button>
+          <label style="margin-top:12px">第 2 步：粘贴 AI 返回的 JSON<textarea id="pasteJson" rows="7" placeholder='粘贴以 {"subjects": ... 开头的完整内容'></textarea></label>
+          <button class="btn btn-teal" id="pasteGenBtn" type="button">用粘贴的结果生成学习舱</button>
+        </div>
+
+        <p class="status" id="status">先把 Step 01 的必填项填好。</p>
+        <div class="result-box" id="resultBox" hidden>
+          <strong id="resultTitle">学习舱已生成</strong>
+          <div class="result-actions">
+            <a class="btn btn-dark" id="downloadLink" download="学习舱.html">下载学习舱网页</a>
+            <button class="btn btn-ghost" id="previewBtn" type="button">新窗口预览</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="notice" style="margin-top:2px">
+        提示：AI 生成的课程内容供家庭辅导参考，具体知识点表述请家长抽查核对；生成的网页是单文件，发给孩子后双击即可离线使用，学习进度保存在孩子设备的浏览器里。
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+        var $ = function (id) { return document.getElementById(id); };
+        var statusEl = $("status");
+        var photos = []; // dataURL 列表
+        var packs = {};
+        var podAssets = null;
+        var latestUrl = "";
+
+        function setStatus(text, cls) {
+          statusEl.textContent = text;
+          statusEl.className = "status" + (cls ? " " + cls : "");
+        }
+        function esc(v) {
+          return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+          });
+        }
+
+        /* ---------- 草稿自动保存 ---------- */
+        var FIELDS = ["pName", "pGrade", "pDays", "pStatus", "pStrength", "pScores", "pGoal", "pMaterials"];
+        try {
+          var draft = JSON.parse(localStorage.getItem("custom:draft") || "{}");
+          FIELDS.forEach(function (f) { if (draft[f]) $(f).value = draft[f]; });
+        } catch (e) { /* 忽略 */ }
+        FIELDS.forEach(function (f) {
+          $(f).addEventListener("input", function () {
+            try {
+              var d = {};
+              FIELDS.forEach(function (k) { d[k] = $(k).value; });
+              localStorage.setItem("custom:draft", JSON.stringify(d));
+            } catch (e) { /* 忽略 */ }
+          });
+        });
+
+        /* ---------- 成绩单照片 ---------- */
+        $("photoInput").addEventListener("change", function () {
+          var files = Array.prototype.slice.call($("photoInput").files);
+          files.forEach(function (file) {
+            if (photos.length >= 4) return;
+            var reader = new FileReader();
+            reader.onload = function () {
+              var img = new Image();
+              img.onload = function () {
+                var max = 1280;
+                var scale = Math.min(1, max / Math.max(img.width, img.height));
+                var canvas = document.createElement("canvas");
+                canvas.width = Math.round(img.width * scale);
+                canvas.height = Math.round(img.height * scale);
+                canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+                photos.push(canvas.toDataURL("image/jpeg", 0.82));
+                renderThumbs();
+              };
+              img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+          });
+          $("photoInput").value = "";
+        });
+        function renderThumbs() {
+          $("thumbs").innerHTML = photos.map(function (p, i) {
+            return '<div class="thumb"><img src="' + p + '" alt="成绩单' + (i + 1) + '" /><button data-i="' + i + '" type="button">×</button></div>';
+          }).join("");
+          Array.prototype.forEach.call($("thumbs").querySelectorAll("button"), function (b) {
+            b.addEventListener("click", function () { photos.splice(Number(b.dataset.i), 1); renderThumbs(); });
+          });
+        }
+
+        /* ---------- 教材包 ---------- */
+        function loadPacks() {
+          Promise.all(["primary", "junior", "senior"].map(function (s) {
+            return fetch("./curriculum-" + s + ".json").then(function (r) { return r.json(); }).then(function (d) { return [s, d]; });
+          })).then(function (entries) {
+            entries.forEach(function (e) { packs[e[0]] = e[1]; });
+            refreshGrades();
+          }).catch(function () { setStatus("教材包加载失败，可忽略，直接在补充资料里写明年级科目。", "bad"); });
+        }
+        function refreshGrades() {
+          var pack = packs[$("stageSel").value];
+          if (!pack) return;
+          $("gradeSel").innerHTML = Object.keys(pack.grades).map(function (g) {
+            return '<option value="' + esc(g) + '">' + esc(g) + "</option>";
+          }).join("");
+        }
+        $("stageSel").addEventListener("change", refreshGrades);
+        $("addPackBtn").addEventListener("click", function () {
+          var pack = packs[$("stageSel").value];
+          var gradeKey = $("gradeSel").value;
+          if (!pack || !gradeKey) { setStatus("教材包还没加载好，稍等或刷新。", "bad"); return; }
+          var grade = pack.grades[gradeKey];
+          var lines = ["===== 教材包：" + pack.meta.name + " / " + gradeKey + " =====", "说明：" + pack.meta.note, ""];
+          grade.subjects.forEach(function (s) {
+            lines.push("- " + s.name + "｜册别：" + s.books.join("、") + "｜重点：" + s.focus.join("、"));
+          });
+          $("pMaterials").value += ($("pMaterials").value ? "\n\n" : "") + lines.join("\n");
+          $("pMaterials").dispatchEvent(new Event("input"));
+          setStatus("已加入 " + gradeKey + " 教材包。", "ok");
+        });
+        loadPacks();
+
+        /* ---------- 校验与提示词 ---------- */
+        function getProfile() {
+          return {
+            name: $("pName").value.trim(),
+            grade: $("pGrade").value.trim(),
+            days: $("pDays").value.trim() || "30",
+            status: $("pStatus").value.trim(),
+            strength: $("pStrength").value.trim(),
+            scores: $("pScores").value.trim(),
+            goal: $("pGoal").value.trim(),
+            materials: $("pMaterials").value.trim(),
+          };
+        }
+        function validate(p) {
+          if (!p.name) return "请填写孩子姓名。";
+          if (!p.grade) return "请填写年龄/年级。";
+          if (!p.status) return "请填写目前学习状态说明。";
+          if (!p.strength) return "请填写学科长处与短处。";
+          return "";
+        }
+        function buildPrompt(p) {
+          return [
+            "你是一名资深的中国家庭教育学习规划师。请根据下面这个孩子的具体情况（包括随附的成绩单/试卷照片，如有），先分析出需要重点补课的学科和知识点，再生成个性化课程数据。",
+            "",
+            "【孩子情况】",
+            "姓名：" + p.name,
+            "年龄/年级：" + p.grade,
+            "学习周期：" + p.days + " 天",
+            "学习状态：" + p.status,
+            "学科长处与短处：" + p.strength,
+            p.scores ? "成绩偏差说明：" + p.scores : "",
+            p.goal ? "补课目标：" + p.goal : "",
+            "",
+            p.materials ? "【教材范围与补充资料】\n" + p.materials.slice(0, 40000) : "",
+            "",
+            "【个性化要求（最重要）】",
+            "1. 薄弱科目（根据长短处、成绩偏差、成绩单照片判断）：多排知识点（3-5 个），status 标为“补差重点”，从孩子可能卡住的基础环节讲起，小测题每课 3-5 道。",
+            "2. 中等科目：2-3 个知识点，status 标为“需巩固”。",
+            "3. 优势科目：1-2 个知识点即可，status 标为“巩固拔高”，可以适当提高难度。",
+            "4. 每个知识点都要有：一句话讲清(oneLine)、生活例子(example)、3-4 个分步讲解(steps + narration)、关键词(terms)、易错提醒(mistake)、第二天复核任务(review)、选择题小测(quiz)。",
+            "5. 小测答案下标从 0 开始且必须小于选项数，正确答案位置要随机分布。",
+            "6. 不能胡编教材内容；不确定的表述要保守。",
+            "",
+            "请只返回 JSON，不要 Markdown，不要解释。结构：",
+            '{"subjects": {"math": {"label": "数学", "tasks": [["任务标题","任务说明"]], "lessons": [{"title": "知识点", "status": "补差重点", "oneLine": "...", "example": "...", "steps": ["...","...","..."], "terms": [["关键词","解释"]], "mistake": "...", "narration": ["...","...","..."], "review": ["...","..."], "quiz": [["题目",["A","B","C"],0]]}]}}}',
+          ].filter(Boolean).join("\n");
+        }
+
+        /* ---------- JSON 清洗（与服务端同逻辑） ---------- */
+        function extractJson(text) {
+          text = String(text).trim();
+          text = text.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+          try { return JSON.parse(text); } catch (e) {
+            var s = text.indexOf("{"), en = text.lastIndexOf("}");
+            if (s >= 0 && en > s) return JSON.parse(text.slice(s, en + 1));
+            throw new Error("不是合法 JSON，请确认复制了 AI 返回的完整内容");
+          }
+        }
+        function cleanQuiz(q) {
+          try {
+            var question, options, answer;
+            if (Array.isArray(q) && q.length >= 3) { question = String(q[0]).trim(); options = q[1].slice(0, 4).map(String); answer = parseInt(q[2], 10); }
+            else if (q && typeof q === "object") { question = String(q.question || "").trim(); options = (q.options || []).slice(0, 4).map(String); answer = parseInt(q.answerIndex != null ? q.answerIndex : q.answer, 10) || 0; }
+            else return null;
+            if (!question || options.length < 2 || isNaN(answer) || answer < 0 || answer >= options.length) return null;
+            return [question, options, answer];
+          } catch (e) { return null; }
+        }
+        function normalize(raw, p) {
+          var subjects = raw && raw.subjects;
+          if (!subjects || typeof subjects !== "object") throw new Error("返回缺少 subjects");
+          var out = {};
+          Object.keys(subjects).forEach(function (key) {
+            var s = subjects[key];
+            if (!s || typeof s !== "object" || !Array.isArray(s.lessons) || !s.lessons.length) return;
+            var tasks = (s.tasks || []).slice(0, 5).map(function (t) {
+              if (Array.isArray(t) && t.length >= 2) return [String(t[0]), String(t[1])];
+              if (t && typeof t === "object") return [String(t.title || "学习任务"), String(t.detail || "")];
+              return null;
+            }).filter(Boolean);
+            var lessons = s.lessons.slice(0, 8).map(function (l) {
+              if (!l || typeof l !== "object") return null;
+              var steps = (l.steps || []).slice(0, 4).map(String);
+              if (!steps.length) steps = ["看概念", "看例子", "做小测"];
+              var quiz = (l.quiz || []).slice(0, 5).map(cleanQuiz).filter(Boolean);
+              if (!quiz.length) quiz = [["这个知识点最核心的是？", ["先理解概念", "只背答案", "跳过复核"], 0]];
+              var terms = (l.terms || []).slice(0, 8).map(function (t) {
+                if (Array.isArray(t) && t.length >= 2) return [String(t[0]), String(t[1])];
+                if (t && typeof t === "object") return [String(t.term || ""), String(t.meaning || "")];
+                return null;
+              }).filter(Boolean);
+              return {
+                title: String(l.title || "知识点"), status: String(l.status || "待学习"),
+                oneLine: String(l.oneLine || "用一句话说清这个知识点。"), example: String(l.example || "结合生活例子理解。"),
+                steps: steps, terms: terms.length ? terms : [[steps[0], "关键步骤"]],
+                mistake: String(l.mistake || "不要只记结论，要能说出原因。"),
+                narration: (l.narration || []).slice(0, 4).map(String).length ? (l.narration || []).slice(0, 4).map(String) : steps.map(function (st, i) { return "第 " + (i + 1) + " 步：" + st; }),
+                review: (l.review || []).slice(0, 5).map(String).length ? (l.review || []).slice(0, 5).map(String) : ["第二天重做错题。", "用自己的话复述概念。"],
+                quiz: quiz,
+              };
+            }).filter(Boolean);
+            if (lessons.length) out[key] = { label: String(s.label || key), tasks: tasks, lessons: lessons };
+          });
+          if (!Object.keys(out).length) throw new Error("返回内容里没有可用课程");
+          var days = parseInt(p.days, 10); if (isNaN(days) || days < 1) days = 30; if (days > 365) days = 365;
+          var today = new Date();
+          var iso = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+          return {
+            podId: p.name.replace(/[^\w一-鿿-]+/g, "-") + "-" + iso + "-" + Math.random().toString(16).slice(2, 8),
+            generatedAt: iso,
+            student: { name: p.name, grade: p.grade, goal: p.goal || "个性化补强计划", days: days },
+            subjects: out,
+          };
+        }
+
+        /* ---------- 组装学习舱 ---------- */
+        function loadPodAssets() {
+          if (podAssets) return Promise.resolve(podAssets);
+          return Promise.all([
+            fetch("./pod-template.html").then(function (r) { return r.text(); }),
+            fetch("./pod-template.css").then(function (r) { return r.text(); }),
+            fetch("./pod-runtime.js").then(function (r) { return r.text(); }),
+          ]).then(function (arr) { podAssets = { html: arr[0], css: arr[1], js: arr[2] }; return podAssets; });
+        }
+        function buildPod(data) {
+          return loadPodAssets().then(function (a) {
+            var title = data.student.name + "学习舱";
+            var bootstrap = "window.LEARNING_DATA = " + JSON.stringify(data).replace(/</g, "\\u003c") + ";\n";
+            var page = a.html;
+            page = page.split("__POD_TITLE__").join(esc(title));
+            page = page.split("__POD_SUBTITLE__").join(esc(data.student.grade + " · " + data.student.goal));
+            page = page.split("__POD_MARK__").join(esc(data.student.name[0] || "学"));
+            page = page.replace("__POD_CSS__", a.css);
+            page = page.replace("__POD_SCRIPT__", bootstrap + a.js);
+            return { page: page, filename: data.student.name + "-个性化学习舱.html" };
+          });
+        }
+        function offerResult(built) {
+          if (latestUrl) URL.revokeObjectURL(latestUrl);
+          latestUrl = URL.createObjectURL(new Blob([built.page], { type: "text/html;charset=utf-8" }));
+          $("downloadLink").href = latestUrl;
+          $("downloadLink").download = built.filename;
+          $("resultTitle").textContent = built.filename + " 已生成";
+          $("resultBox").hidden = false;
+        }
+        $("previewBtn").addEventListener("click", function () {
+          if (latestUrl) window.open(latestUrl, "_blank");
+        });
+
+        /* ---------- 方式切换 ---------- */
+        Array.prototype.forEach.call(document.querySelectorAll(".mode-tab"), function (tab) {
+          tab.addEventListener("click", function () {
+            Array.prototype.forEach.call(document.querySelectorAll(".mode-tab"), function (t) { t.classList.toggle("active", t === tab); });
+            $("apiPanel").hidden = tab.dataset.mode !== "api";
+            $("pastePanel").hidden = tab.dataset.mode !== "paste";
+          });
+        });
+
+        /* ---------- 方式一：浏览器直连通义 ---------- */
+        $("genBtn").addEventListener("click", function () {
+          var p = getProfile();
+          var err = validate(p);
+          if (err) { setStatus(err, "bad"); return; }
+          var key = $("apiKey").value.trim();
+          if (!key) { setStatus("请填写通义千问 API Key，或切换到方式二。", "bad"); return; }
+          var model = $("modelName").value.trim() || (photos.length ? "qwen-vl-plus" : "qwen-plus");
+          var content;
+          if (photos.length) {
+            content = [{ type: "text", text: buildPrompt(p) }].concat(photos.map(function (d) { return { type: "image_url", image_url: { url: d } }; }));
+          } else {
+            content = buildPrompt(p);
+          }
+          $("genBtn").disabled = true;
+          setStatus("正在调用 " + model + " 分析孩子情况并生成课程（约 30-90 秒）...");
+          fetch("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
+            body: JSON.stringify({ model: model, temperature: 0.4, messages: [
+              { role: "system", content: "你只输出合法 JSON。" },
+              { role: "user", content: content },
+            ] }),
+          }).then(function (r) {
+            return r.json().then(function (d) {
+              if (!r.ok) throw new Error((d.error && d.error.message) || ("接口返回 " + r.status));
+              return d;
+            });
+          }).then(function (d) {
+            var data = normalize(extractJson(d.choices[0].message.content), p);
+            return buildPod(data);
+          }).then(function (built) {
+            offerResult(built);
+            setStatus("生成成功！下载后发给孩子即可使用。", "ok");
+          }).catch(function (e) {
+            var msg = String(e && e.message || e);
+            if (/Failed to fetch|NetworkError|CORS/i.test(msg)) {
+              setStatus("浏览器无法直连模型接口（可能被网络或跨域策略拦截）。请切换到“方式二”，复制提示词用任意 AI 中转，一样能生成。", "bad");
+            } else {
+              setStatus("生成失败：" + msg, "bad");
+            }
+          }).finally(function () { $("genBtn").disabled = false; });
+        });
+
+        /* ---------- 方式二：复制提示词 + 粘贴 JSON ---------- */
+        $("copyPromptBtn").addEventListener("click", function () {
+          var p = getProfile();
+          var err = validate(p);
+          if (err) { setStatus(err, "bad"); return; }
+          var text = buildPrompt(p) + (photos.length ? "\n\n（注意：我会随消息附上孩子的成绩单/试卷照片，请一并分析。）" : "");
+          function done() { setStatus("提示词已复制。粘贴给任意 AI" + (photos.length ? "，并把成绩单照片一起发给它" : "") + "，再把返回的 JSON 粘到第 2 步。", "ok"); }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text, done); });
+          } else { fallbackCopy(text, done); }
+        });
+        function fallbackCopy(text, done) {
+          var ta = document.createElement("textarea");
+          ta.value = text; document.body.appendChild(ta); ta.select();
+          try { document.execCommand("copy"); done(); } catch (e) { setStatus("复制失败，请手动全选复制。", "bad"); }
+          document.body.removeChild(ta);
+        }
+        $("pasteGenBtn").addEventListener("click", function () {
+          var p = getProfile();
+          var err = validate(p);
+          if (err) { setStatus(err, "bad"); return; }
+          var raw = $("pasteJson").value.trim();
+          if (!raw) { setStatus("请先把 AI 返回的 JSON 粘贴进来。", "bad"); return; }
+          try {
+            var data = normalize(extractJson(raw), p);
+            buildPod(data).then(function (built) {
+              offerResult(built);
+              setStatus("生成成功！下载后发给孩子即可使用。", "ok");
+            });
+          } catch (e) {
+            setStatus("解析失败：" + e.message + "。请确认粘贴的是完整 JSON（从 { 开始到 } 结束）。", "bad");
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

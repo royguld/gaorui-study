@@ -3,35 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>高睿暑假学习舱</title>
+    <title>__POD_TITLE__</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="./styles.css" />
+    <style>
+__POD_CSS__
+    </style>
   </head>
   <body>
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-mark">睿</div>
+          <div class="brand-mark">__POD_MARK__</div>
           <div>
-            <h1>高睿暑假学习舱</h1>
-            <p>八升九 · GIC / IG 预习</p>
+            <h1>__POD_TITLE__</h1>
+            <p>__POD_SUBTITLE__</p>
           </div>
         </div>
 
-        <nav class="subject-nav" aria-label="科目导航">
-          <button class="subject-button active" data-subject="math">数学</button>
-          <button class="subject-button" data-subject="english">英语</button>
-          <button class="subject-button" data-subject="chinese">语文</button>
-          <button class="subject-button" data-subject="physics">物理</button>
-          <button class="subject-button" data-subject="chemistry">化学</button>
-          <button class="subject-button" data-subject="economics">经济</button>
-          <button class="subject-button" data-subject="history">历史</button>
-          <button class="subject-button" data-subject="morality">道法</button>
-          <button class="subject-button" data-subject="life">德育</button>
-        </nav>
-
-        <a class="sidebar-link" href="./curriculum.html">全学段教材包 · 小学到高中</a>
-        <a class="sidebar-link" href="./custom.html">个性化定制 · 给自己孩子生成学习舱</a>
+        <nav class="subject-nav" aria-label="科目导航"></nav>
 
         <div class="sidebar-note">
           <span>今日原则</span>
@@ -43,24 +32,15 @@
         <header class="topbar">
           <div>
             <p class="date-line" id="dateLine"></p>
-            <h2 id="topGreeting">今天先把学习节奏跑起来</h2>
+            <h2 id="topGreeting">把今天的学习节奏跑起来</h2>
           </div>
           <div class="progress-card">
-            <span>暑假进度</span>
-            <strong id="progressDays">— / 56 天</strong>
+            <span>计划进度</span>
+            <strong id="progressDays">—</strong>
             <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
             <p class="streak-line" id="streakLine"></p>
           </div>
         </header>
-
-        <section class="panel week-panel">
-          <div class="section-title">
-            <h3>8 周作战图</h3>
-            <span>来自暑假计划</span>
-          </div>
-          <div class="week-strip" id="weekStrip"></div>
-          <div class="week-detail" id="weekDetail"></div>
-        </section>
 
         <section class="dashboard-grid">
           <section class="panel today-panel">
@@ -74,7 +54,7 @@
           <section class="panel map-panel">
             <div class="section-title">
               <h3>科目闯关地图</h3>
-              <span id="subjectSummary">数学 · 3 个知识点</span>
+              <span id="subjectSummary"></span>
             </div>
             <div class="quest-map" id="questMap"></div>
           </section>
@@ -82,8 +62,8 @@
           <section class="panel lesson-panel">
             <div class="lesson-header">
               <div>
-                <span id="lessonSubject">数学</span>
-                <h3 id="lessonTitle">一次函数</h3>
+                <span id="lessonSubject"></span>
+                <h3 id="lessonTitle"></h3>
               </div>
               <div class="lesson-actions">
                 <button class="ghost-button" id="playLesson">播放讲解</button>
@@ -139,6 +119,8 @@
       </main>
     </div>
 
-    <script src="./script.js"></script>
+    <script>
+__POD_SCRIPT__
+    </script>
   </body>
 </html>
