@@ -73,18 +73,19 @@
     </style>
   </head>
   <body>
+    <script src="./auth.js"></script>
     <div class="wrap">
       <div class="top">
         <div class="brand">
           <div class="brand-mark">定</div>
           <div>
-            <h1>个性化学习舱定制</h1>
-            <p class="sub">填孩子情况 → 自动分析薄弱点 → 生成有侧重的学习、复习、小测网页</p>
+            <h1>添加孩子 · 个性化学习舱定制</h1>
+            <p class="sub">填孩子情况 → 自动分析薄弱点 → 生成有侧重的学习、复习、小测课程</p>
           </div>
         </div>
         <div class="top-links">
+          <a href="./home.html">← 起始页</a>
           <a href="./curriculum.html">教材包</a>
-          <a href="./index.html">高睿学习舱</a>
         </div>
       </div>
 
@@ -161,9 +162,11 @@
         <div class="result-box" id="resultBox" hidden>
           <strong id="resultTitle">学习舱已生成</strong>
           <div class="result-actions">
-            <a class="btn btn-dark" id="downloadLink" download="学习舱.html">下载学习舱网页</a>
+            <button class="btn btn-teal" id="saveFamilyBtn" type="button">保存到家庭学习舱（推荐）</button>
+            <a class="btn btn-dark" id="downloadLink" download="学习舱.html">下载单文件网页</a>
             <button class="btn btn-ghost" id="previewBtn" type="button">新窗口预览</button>
           </div>
+          <p class="status" id="saveStatus"></p>
         </div>
       </div>
 
@@ -397,7 +400,9 @@
             fetch("./pod-runtime.js").then(function (r) { return r.text(); }),
           ]).then(function (arr) { podAssets = { html: arr[0], css: arr[1], js: arr[2] }; return podAssets; });
         }
+        var lastData = null;
         function buildPod(data) {
+          lastData = data;
           return loadPodAssets().then(function (a) {
             var title = data.student.name + "学习舱";
             var bootstrap = "window.LEARNING_DATA = " + JSON.stringify(data).replace(/</g, "\\u003c") + ";\n";
@@ -420,6 +425,32 @@
         }
         $("previewBtn").addEventListener("click", function () {
           if (latestUrl) window.open(latestUrl, "_blank");
+        });
+
+        /* ---------- 保存到家庭学习舱 ---------- */
+        $("saveFamilyBtn").addEventListener("click", function () {
+          if (!lastData) return;
+          var kids = [];
+          try { kids = JSON.parse(localStorage.getItem("family:children") || "[]"); } catch (e) { /* 忽略 */ }
+          if (kids.length >= 10) {
+            $("saveStatus").textContent = "本设备最多保存 10 个孩子，请先在起始页删除不用的。";
+            $("saveStatus").className = "status bad";
+            return;
+          }
+          if (!kids.some(function (c) { return c.podId === lastData.podId; })) {
+            kids.push(lastData);
+            try { localStorage.setItem("family:children", JSON.stringify(kids)); } catch (e) {
+              $("saveStatus").textContent = "保存失败：浏览器存储空间不足。";
+              $("saveStatus").className = "status bad";
+              return;
+            }
+          }
+          var url = "./learn.html?child=" + encodeURIComponent(lastData.podId);
+          $("saveStatus").innerHTML =
+            '已保存！<a href="' + url + '">马上进入 ' +
+            String(lastData.student.name).replace(/[&<>"']/g, "") +
+            ' 的学习舱 →</a>　或　<a href="./home.html">返回起始页</a>';
+          $("saveStatus").className = "status ok";
         });
 
         /* ---------- 方式切换 ---------- */

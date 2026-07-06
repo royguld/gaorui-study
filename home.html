@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>家庭学习舱 · 起始页</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        --bg: #f7fafc; --panel: #ffffff; --ink: #14283f; --muted: #64748b;
+        --line: #dbe5ee; --teal: #0f9f9a; --teal-soft: #e7f7f5;
+        --amber: #d88a18; --amber-soft: #fff4df; --navy: #10263b;
+        --shadow: 0 18px 44px rgba(21, 45, 70, 0.09);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh;
+        background:
+          linear-gradient(rgba(20, 40, 63, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(20, 40, 63, 0.035) 1px, transparent 1px),
+          var(--bg);
+        background-size: 28px 28px;
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      /* ---------- 授权门 ---------- */
+      .gate {
+        min-height: 100vh; display: grid; place-items: center; padding: 20px;
+      }
+      .gate-card {
+        width: 100%; max-width: 400px; background: var(--panel);
+        border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+        padding: 34px 30px; text-align: center;
+      }
+      .gate-mark {
+        width: 58px; height: 58px; margin: 0 auto 14px; display: grid; place-items: center;
+        background: #f5b544; color: var(--navy); border-radius: 12px; font-weight: 800; font-size: 26px;
+      }
+      .gate-card h1 { margin: 0 0 6px; font-size: 22px; }
+      .gate-card p { margin: 0 0 20px; color: var(--muted); font-size: 13.5px; line-height: 1.6; }
+      .gate-card input {
+        width: 100%; border: 1px solid var(--line); border-radius: 8px;
+        padding: 12px 14px; font: inherit; font-size: 16px; text-align: center;
+        letter-spacing: 2px; background: #fbfdff;
+      }
+      .gate-card button {
+        width: 100%; margin-top: 12px; border: 0; border-radius: 8px; padding: 12px;
+        background: var(--teal); color: #fff; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+      }
+      .gate-err { color: #b13c2e; font-size: 13px; min-height: 18px; margin: 10px 0 0; font-weight: 700; }
+
+      /* ---------- 主面板 ---------- */
+      .wrap { max-width: 1020px; margin: 0 auto; padding: 28px 20px 60px; }
+      .top { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+      .brand { display: flex; align-items: center; gap: 12px; }
+      .brand-mark { width: 46px; height: 46px; display: grid; place-items: center; background: #f5b544; color: var(--navy); border-radius: 9px; font-weight: 800; font-size: 21px; }
+      h1 { margin: 0; font-size: 24px; }
+      .sub { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+      .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+      .actions button, .actions a {
+        border: 1px solid var(--line); background: var(--panel); color: #33506b;
+        border-radius: 7px; padding: 9px 13px; font: inherit; font-size: 13px;
+        cursor: pointer; text-decoration: none;
+      }
+      .actions .primary { background: var(--teal); border-color: var(--teal); color: #fff; font-weight: 700; }
+      .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+      .child-card {
+        background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+        box-shadow: var(--shadow); padding: 20px; display: flex; flex-direction: column; gap: 12px;
+        transition: transform 0.18s ease;
+      }
+      .child-card:hover { transform: translateY(-3px); }
+      .cc-head { display: flex; align-items: center; gap: 12px; }
+      .cc-avatar { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--teal-soft); color: #087872; font-size: 21px; font-weight: 800; flex: none; }
+      .cc-head h3 { margin: 0; font-size: 17px; }
+      .cc-head p { margin: 3px 0 0; color: var(--muted); font-size: 12.5px; }
+      .cc-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+      .cc-stats span { background: #f5f8fb; border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; font-size: 12px; color: #33506b; }
+      .cc-stats .hot { background: var(--amber-soft); border-color: #f2dfbd; color: var(--amber); font-weight: 700; }
+      .cc-bar { height: 7px; background: #e8eef4; border-radius: 99px; overflow: hidden; }
+      .cc-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--teal), #74c7b8); }
+      .cc-foot { display: flex; gap: 8px; align-items: center; }
+      .cc-enter { flex: 1; text-align: center; background: var(--navy); color: #fff; border-radius: 7px; padding: 11px; font-size: 14px; font-weight: 700; text-decoration: none; }
+      .cc-del { border: 1px solid var(--line); background: #fff; color: #9aa9ba; border-radius: 7px; padding: 10px 12px; font: inherit; font-size: 12px; cursor: pointer; }
+      .cc-del:hover { color: #b13c2e; border-color: #e5c0ba; }
+      .add-card {
+        border: 2px dashed var(--line); border-radius: 10px; display: grid; place-items: center;
+        min-height: 190px; color: var(--muted); text-decoration: none; text-align: center;
+        font-size: 14px; background: rgba(255, 255, 255, 0.6);
+      }
+      .add-card strong { display: block; font-size: 30px; color: var(--teal); margin-bottom: 6px; }
+      .add-card:hover { border-color: var(--teal); color: #087872; }
+      .notice { margin-top: 22px; background: var(--amber-soft); border: 1px solid #f2dfbd; border-radius: 8px; padding: 12px 14px; font-size: 12.5px; color: #7a5510; line-height: 1.65; }
+      #importInput { display: none; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <!-- 授权门 -->
+    <div class="gate" id="gate" hidden>
+      <div class="gate-card">
+        <div class="gate-mark">家</div>
+        <h1>家庭学习舱</h1>
+        <p>请输入授权码进入。授权码请向管理员（高睿爸爸）索取，验证后本设备 30 天内免输入。</p>
+        <input type="password" id="codeInput" placeholder="授权码" autocomplete="off" />
+        <button id="codeBtn" type="button">进入</button>
+        <p class="gate-err" id="gateErr"></p>
+      </div>
+    </div>
+
+    <!-- 主面板 -->
+    <div class="wrap" id="board" hidden>
+      <div class="top">
+        <div class="brand">
+          <div class="brand-mark">家</div>
+          <div>
+            <h1>家庭学习舱</h1>
+            <p class="sub">选择孩子进入专属学习舱，每个孩子的课程和进度互相独立</p>
+          </div>
+        </div>
+        <div class="actions">
+          <a class="primary" href="./custom.html">+ 添加孩子</a>
+          <a href="./curriculum.html">教材包</a>
+          <button id="exportBtn" type="button">导出备份</button>
+          <button id="importBtn" type="button">导入备份</button>
+          <input type="file" id="importInput" accept=".json" />
+          <button id="logoutBtn" type="button">退出授权</button>
+        </div>
+      </div>
+      <div class="cards" id="cards"></div>
+      <div class="notice">
+        孩子的课程与学习进度保存在本设备的浏览器里，请让孩子固定使用同一台设备学习。换设备或重装浏览器前，先点"导出备份"，把文件传到新设备后"导入备份"即可完整恢复。添加新孩子请点"+ 添加孩子"，按向导填写情况并生成课程。
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+        var EXPECTED = "35877d8de72fbb66117be6da30e7503b171e4e16de487155175a6aaa53140329";
+        var VALID_MS = 30 * 24 * 3600 * 1000;
+        var $ = function (id) { return document.getElementById(id); };
+
+        function esc(v) {
+          return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+          });
+        }
+        function sha256Hex(text) {
+          var data = new TextEncoder().encode(text);
+          return crypto.subtle.digest("SHA-256", data).then(function (buf) {
+            return Array.prototype.map.call(new Uint8Array(buf), function (b) {
+              return b.toString(16).padStart(2, "0");
+            }).join("");
+          });
+        }
+        function isAuthed() {
+          try {
+            var a = JSON.parse(localStorage.getItem("family:auth") || "null");
+            return !!(a && a.h === EXPECTED && Date.now() - a.ts < VALID_MS);
+          } catch (e) { return false; }
+        }
+        function loadJSON(key, fallback) {
+          try { var r = localStorage.getItem(key); return r === null ? fallback : JSON.parse(r); }
+          catch (e) { return fallback; }
+        }
+        function saveJSON(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* 忽略 */ } }
+
+        /* ---------- 授权门 ---------- */
+        function tryEnter() {
+          var code = $("codeInput").value.trim();
+          if (!code) { $("gateErr").textContent = "请输入授权码。"; return; }
+          sha256Hex(code).then(function (h) {
+            if (h === EXPECTED) {
+              saveJSON("family:auth", { h: h, ts: Date.now() });
+              var next = new URLSearchParams(location.search).get("next");
+              if (next && /^[\w.-]+\.html/.test(next)) { location.replace("./" + next); return; }
+              showBoard();
+            } else {
+              $("gateErr").textContent = "授权码不正确，请核对后重试。";
+              $("codeInput").value = "";
+            }
+          });
+        }
+        $("codeBtn").addEventListener("click", tryEnter);
+        $("codeInput").addEventListener("keydown", function (e) { if (e.key === "Enter") tryEnter(); });
+
+        /* ---------- 孩子卡片 ---------- */
+        function childStats(podId, total) {
+          var done = loadJSON(podId + ":completed", []).length;
+          var days = loadJSON(podId + ":activeDays", []);
+          var last = days.length ? days[days.length - 1] : "";
+          // 连续天数（从最后活跃日往前数）；注意用本地时区格式化，不能用 toISOString(UTC)
+          var streak = 0;
+          if (days.length) {
+            var set = {}; days.forEach(function (d) { set[d] = 1; });
+            var fmtLocal = function (dt) {
+              return dt.getFullYear() + "-" + String(dt.getMonth() + 1).padStart(2, "0") + "-" + String(dt.getDate()).padStart(2, "0");
+            };
+            var cur = new Date(days[days.length - 1] + "T00:00:00");
+            while (set[fmtLocal(cur)]) { streak++; cur.setDate(cur.getDate() - 1); }
+          }
+          return { done: done, total: total, streak: streak, last: last };
+        }
+        function gaoruiStats() {
+          var done = loadJSON("completedLessons", []).length;
+          var days = loadJSON("grx:activeDays", []);
+          return { done: done, total: 21, streak: 0, last: days.length ? days[days.length - 1] : "" };
+        }
+        function cardHtml(name, grade, stats, href, delId) {
+          var pct = stats.total ? Math.min(100, Math.round((stats.done / stats.total) * 100)) : 0;
+          return (
+            '<div class="child-card">' +
+            '<div class="cc-head"><div class="cc-avatar">' + esc(name[0] || "学") + "</div>" +
+            "<div><h3>" + esc(name) + "</h3><p>" + esc(grade) + "</p></div></div>" +
+            '<div class="cc-stats">' +
+            "<span>已学 " + stats.done + "/" + stats.total + " 个知识点</span>" +
+            (stats.streak > 1 ? '<span class="hot">连续 ' + stats.streak + " 天</span>" : "") +
+            (stats.last ? "<span>上次 " + esc(stats.last.slice(5)) + "</span>" : "<span>还没开始</span>") +
+            "</div>" +
+            '<div class="cc-bar"><i style="width:' + pct + '%"></i></div>' +
+            '<div class="cc-foot"><a class="cc-enter" href="' + href + '">进入学习舱</a>' +
+            (delId ? '<button class="cc-del" data-del="' + esc(delId) + '">删除</button>' : "") +
+            "</div></div>"
+          );
+        }
+        function countLessons(child) {
+          var n = 0;
+          Object.keys(child.subjects || {}).forEach(function (k) { n += (child.subjects[k].lessons || []).length; });
+          return n;
+        }
+        function renderCards() {
+          var children = loadJSON("family:children", []);
+          var html = cardHtml("高睿", "八升九 · GIC / IG 预习", gaoruiStats(), "./index.html", "");
+          children.forEach(function (c) {
+            var stats = childStats(c.podId, countLessons(c));
+            html += cardHtml(c.student.name, c.student.grade, stats, "./learn.html?child=" + encodeURIComponent(c.podId), c.podId);
+          });
+          html += '<a class="add-card" href="./custom.html"><span><strong>＋</strong>添加孩子<br />填写情况，生成专属学习舱</span></a>';
+          $("cards").innerHTML = html;
+          Array.prototype.forEach.call(document.querySelectorAll(".cc-del"), function (btn) {
+            btn.addEventListener("click", function () {
+              var id = btn.dataset.del;
+              var kids = loadJSON("family:children", []);
+              var kid = kids.filter(function (c) { return c.podId === id; })[0];
+              if (!kid) return;
+              if (!confirm("确定删除「" + kid.student.name + "」的学习舱？课程和学习进度都会清除，建议先导出备份。")) return;
+              saveJSON("family:children", kids.filter(function (c) { return c.podId !== id; }));
+              // 清理该孩子的进度键
+              var toRemove = [];
+              for (var i = 0; i < localStorage.length; i++) {
+                var k = localStorage.key(i);
+                if (k && k.indexOf(id + ":") === 0) toRemove.push(k);
+              }
+              toRemove.forEach(function (k) { localStorage.removeItem(k); });
+              renderCards();
+            });
+          });
+        }
+
+        /* ---------- 备份 ---------- */
+        $("exportBtn").addEventListener("click", function () {
+          var dump = {};
+          for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (k === "family:auth") continue; // 授权不导出
+            dump[k] = localStorage.getItem(k);
+          }
+          var blob = new Blob([JSON.stringify({ type: "family-backup", ts: Date.now(), data: dump }, null, 2)], { type: "application/json" });
+          var a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          var d = new Date();
+          a.download = "家庭学习舱备份-" + d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0") + ".json";
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        });
+        $("importBtn").addEventListener("click", function () { $("importInput").click(); });
+        $("importInput").addEventListener("change", function () {
+          var file = $("importInput").files[0];
+          if (!file) return;
+          var reader = new FileReader();
+          reader.onload = function () {
+            try {
+              var obj = JSON.parse(reader.result);
+              if (!obj || obj.type !== "family-backup" || !obj.data) throw new Error("不是有效的备份文件");
+              Object.keys(obj.data).forEach(function (k) {
+                if (k === "family:auth") return;
+                localStorage.setItem(k, obj.data[k]);
+              });
+              renderCards();
+              alert("导入成功，孩子档案和进度已恢复。");
+            } catch (e) { alert("导入失败：" + e.message); }
+            $("importInput").value = "";
+          };
+          reader.readAsText(file);
+        });
+        $("logoutBtn").addEventListener("click", function () {
+          localStorage.removeItem("family:auth");
+          location.reload();
+        });
+
+        /* ---------- 启动 ---------- */
+        function showBoard() {
+          $("gate").hidden = true;
+          $("board").hidden = false;
+          renderCards();
+        }
+        if (isAuthed()) {
+          var next = new URLSearchParams(location.search).get("next");
+          if (next && /^[\w.-]+\.html/.test(next)) { location.replace("./" + next); }
+          else showBoard();
+        } else {
+          $("gate").hidden = false;
+          $("codeInput").focus();
+        }
+      })();
+    </script>
+  </body>
+</html>
