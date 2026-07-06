@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>家长报告 · 孩子学习状态</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        --bg: #f7fafc; --panel: #ffffff; --ink: #14283f; --muted: #64748b;
+        --line: #dbe5ee; --teal: #0f9f9a; --teal-soft: #e7f7f5;
+        --amber: #d88a18; --amber-soft: #fff4df; --red: #b13c2e; --green: #1d7a4f;
+        --shadow: 0 18px 44px rgba(21, 45, 70, 0.09);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh;
+        background:
+          linear-gradient(rgba(20, 40, 63, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(20, 40, 63, 0.035) 1px, transparent 1px),
+          var(--bg);
+        background-size: 28px 28px;
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      .wrap { max-width: 1000px; margin: 0 auto; padding: 26px 18px 60px; }
+      .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+      .brand { display: flex; align-items: center; gap: 12px; }
+      .brand-mark { width: 44px; height: 44px; display: grid; place-items: center; background: #f5b544; color: #10263b; border-radius: 9px; font-weight: 800; font-size: 20px; }
+      h1 { margin: 0; font-size: 23px; }
+      .sub { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+      .top a { color: #1f5d8f; text-decoration: none; font-size: 13px; background: #edf5ff; border-radius: 7px; padding: 9px 13px; }
+      .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+      .tab {
+        border: 1px solid var(--line); background: #f5f8fb; color: #33506b;
+        border-radius: 999px; padding: 9px 16px; font: inherit; font-size: 13.5px; cursor: pointer;
+      }
+      .tab.active { background: var(--teal-soft); border-color: var(--teal); color: #087872; font-weight: 700; }
+      .tab.child.active { background: #10263b; border-color: #10263b; color: #fff; }
+      .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 18px; margin-bottom: 16px; }
+      .card h2 { margin: 0 0 12px; font-size: 17px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .card h2 small { color: var(--muted); font-weight: 400; font-size: 12.5px; }
+      .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+      .tile { background: #f7fbff; border: 1px solid #e3edf5; border-radius: 8px; padding: 14px; }
+      .tile span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+      .tile strong { font-size: 21px; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #eef3f8; }
+      th { color: var(--muted); font-weight: 600; font-size: 12px; background: #f8fbfd; }
+      tr.sum td { font-weight: 800; background: var(--teal-soft); }
+      .pct-low { color: var(--red); font-weight: 700; }
+      .pct-ok { color: var(--green); font-weight: 700; }
+      .timeline { list-style: none; margin: 0; padding: 0; }
+      .timeline li { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid #eef3f8; font-size: 13.5px; }
+      .timeline time { color: var(--muted); font-size: 12px; flex: none; width: 44px; padding-top: 2px; }
+      .tl-quiz { color: #1f5d8f; }
+      .tl-lesson_done { color: var(--green); }
+      .tl-review_done { color: var(--teal); }
+      .weak-item { padding: 10px 0; border-bottom: 1px solid #eef3f8; font-size: 13.5px; }
+      .weak-item strong { display: block; margin-bottom: 3px; }
+      .weak-item p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+      .weak-tag { display: inline-block; background: var(--amber-soft); color: var(--amber); border-radius: 5px; font-size: 11px; padding: 2px 7px; margin-right: 6px; }
+      .empty { color: var(--muted); font-size: 13px; padding: 12px 0; }
+      .copy-btn { border: 0; background: var(--teal); color: #fff; border-radius: 7px; padding: 9px 14px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+      .copy-btn.done { background: #28a36a; }
+      .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      @media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } }
+      .table-scroll { overflow-x: auto; }
+    </style>
+  </head>
+  <body>
+    <script src="./auth.js"></script>
+    <div class="wrap">
+      <div class="top">
+        <div class="brand">
+          <div class="brand-mark">报</div>
+          <div>
+            <h1>家长报告</h1>
+            <p class="sub">学习时长 · 小测成绩 · 未掌握知识点，数据来自孩子学习舱的真实操作记录</p>
+          </div>
+        </div>
+        <a href="./home.html">← 返回起始页</a>
+      </div>
+
+      <div class="tabs" id="childTabs"></div>
+      <div class="tabs" id="rangeTabs">
+        <button class="tab active" data-range="1" type="button">今日</button>
+        <button class="tab" data-range="7" type="button">最近 7 天</button>
+        <button class="tab" data-range="30" type="button">最近 30 天</button>
+      </div>
+
+      <div class="card">
+        <h2><span id="sumTitle">汇总</span><button class="copy-btn" id="copyBtn" type="button">复制汇总文本</button></h2>
+        <div class="tiles" id="tiles"></div>
+      </div>
+
+      <div class="card" id="tableCard">
+        <h2>每日明细</h2>
+        <div class="table-scroll"><table id="dayTable"></table></div>
+      </div>
+
+      <div class="card" id="timelineCard" hidden>
+        <h2>今日学习时间线</h2>
+        <ul class="timeline" id="timeline"></ul>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <h2>未掌握知识点摘要 <small>错题本中待复核的题目</small></h2>
+          <div id="weakWrong"></div>
+        </div>
+        <div class="card">
+          <h2>需要加强的课程 <small>最近一次小测正确率低于 60%</small></h2>
+          <div id="weakLessons"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+        var $ = function (id) { return document.getElementById(id); };
+        function esc(v) {
+          return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+          });
+        }
+        function loadJSON(key, fallback) {
+          try { var r = localStorage.getItem(key); return r === null ? fallback : JSON.parse(r); }
+          catch (e) { return fallback; }
+        }
+        function fmtLocal(dt) {
+          return dt.getFullYear() + "-" + String(dt.getMonth() + 1).padStart(2, "0") + "-" + String(dt.getDate()).padStart(2, "0");
+        }
+        function lastNDays(n) {
+          var out = [];
+          var d = new Date();
+          for (var i = 0; i < n; i++) { out.unshift(fmtLocal(d)); d.setDate(d.getDate() - 1); }
+          return out;
+        }
+        function fmtMin(sec) {
+          if (!sec) return "0 分钟";
+          var m = Math.round(sec / 60);
+          if (m < 60) return m + " 分钟";
+          return Math.floor(m / 60) + " 小时 " + (m % 60) + " 分";
+        }
+
+        /* ---------- 孩子列表 ---------- */
+        var children = [{ id: "__gaorui__", name: "高睿", prefix: null }];
+        loadJSON("family:children", []).forEach(function (c) {
+          children.push({ id: c.podId, name: c.student.name, prefix: c.podId + ":" });
+        });
+        function keyOf(child, k) {
+          if (child.prefix) return child.prefix + k;
+          return { time: "grx:time", log: "grx:log", scores: "grx:scores", wrongBook: "grx:wrongBook", activeDays: "grx:activeDays" }[k];
+        }
+        var current = children[0];
+        var urlChild = new URLSearchParams(location.search).get("child");
+        if (urlChild) {
+          children.forEach(function (c) { if (c.id === urlChild) current = c; });
+        }
+        var rangeDays = 1;
+
+        /* ---------- 数据聚合 ---------- */
+        function dayRow(child, dateStr) {
+          var time = loadJSON(keyOf(child, "time"), {})[dateStr] || 0;
+          var scores = loadJSON(keyOf(child, "scores"), []).filter(function (s) { return s.date === dateStr; });
+          var log = loadJSON(keyOf(child, "log"), []).filter(function (e) { return e.d === dateStr; });
+          var wrong = loadJSON(keyOf(child, "wrongBook"), []).filter(function (w) { return w.date === dateStr; });
+          var qTotal = 0, qGot = 0;
+          scores.forEach(function (s) { qTotal += s.total; qGot += s.score; });
+          return {
+            date: dateStr,
+            sec: time,
+            quizzes: scores.length,
+            pct: qTotal ? Math.round((qGot / qTotal) * 100) : null,
+            lessons: log.filter(function (e) { return e.type === "lesson_done"; }).length,
+            tasks: log.filter(function (e) { return e.type === "task"; }).length,
+            newWrong: wrong.length,
+          };
+        }
+        function aggregate(child, days) {
+          var rows = days.map(function (d) { return dayRow(child, d); });
+          var sum = { sec: 0, quizzes: 0, lessons: 0, tasks: 0, newWrong: 0, qGot: 0, qTotal: 0 };
+          days.forEach(function (d) {
+            var scores = loadJSON(keyOf(child, "scores"), []).filter(function (s) { return s.date === d; });
+            scores.forEach(function (s) { sum.qGot += s.score; sum.qTotal += s.total; });
+          });
+          rows.forEach(function (r) {
+            sum.sec += r.sec; sum.quizzes += r.quizzes; sum.lessons += r.lessons;
+            sum.tasks += r.tasks; sum.newWrong += r.newWrong;
+          });
+          sum.pct = sum.qTotal ? Math.round((sum.qGot / sum.qTotal) * 100) : null;
+          return { rows: rows, sum: sum };
+        }
+
+        /* ---------- 渲染 ---------- */
+        function pctHtml(pct) {
+          if (pct === null) return "—";
+          return '<span class="' + (pct < 60 ? "pct-low" : "pct-ok") + '">' + pct + "%</span>";
+        }
+        function render() {
+          // 孩子选项卡
+          $("childTabs").innerHTML = children.map(function (c) {
+            return '<button class="tab child ' + (c.id === current.id ? "active" : "") + '" data-child="' + esc(c.id) + '" type="button">' + esc(c.name) + "</button>";
+          }).join("");
+          Array.prototype.forEach.call(document.querySelectorAll("[data-child]"), function (b) {
+            b.addEventListener("click", function () {
+              children.forEach(function (c) { if (c.id === b.dataset.child) current = c; });
+              render();
+            });
+          });
+
+          var days = lastNDays(rangeDays);
+          var agg = aggregate(current, days);
+          var label = rangeDays === 1 ? "今日" : "最近 " + rangeDays + " 天";
+          $("sumTitle").textContent = current.name + " · " + label + "汇总";
+          $("tiles").innerHTML =
+            '<div class="tile"><span>学习时长</span><strong>' + fmtMin(agg.sum.sec) + "</strong></div>" +
+            '<div class="tile"><span>小测次数</span><strong>' + agg.sum.quizzes + " 次</strong></div>" +
+            '<div class="tile"><span>小测正确率</span><strong>' + (agg.sum.pct === null ? "—" : agg.sum.pct + "%") + "</strong></div>" +
+            '<div class="tile"><span>学完知识点</span><strong>' + agg.sum.lessons + " 个</strong></div>" +
+            '<div class="tile"><span>完成任务</span><strong>' + agg.sum.tasks + " 项</strong></div>" +
+            '<div class="tile"><span>新增错题</span><strong>' + agg.sum.newWrong + " 道</strong></div>";
+
+          // 每日明细表（多天时显示）
+          if (rangeDays > 1) {
+            $("tableCard").hidden = false;
+            var html = "<tr><th>日期</th><th>时长</th><th>小测</th><th>正确率</th><th>学完</th><th>任务</th><th>新错题</th></tr>";
+            agg.rows.forEach(function (r) {
+              var idle = !r.sec && !r.quizzes && !r.lessons && !r.tasks;
+              html += "<tr" + (idle ? ' style="color:#9aa9ba"' : "") + "><td>" + r.date.slice(5) + "</td><td>" + fmtMin(r.sec) + "</td><td>" +
+                r.quizzes + "</td><td>" + pctHtml(r.pct) + "</td><td>" + r.lessons + "</td><td>" + r.tasks + "</td><td>" + r.newWrong + "</td></tr>";
+            });
+            html += '<tr class="sum"><td>合计</td><td>' + fmtMin(agg.sum.sec) + "</td><td>" + agg.sum.quizzes + "</td><td>" +
+              (agg.sum.pct === null ? "—" : agg.sum.pct + "%") + "</td><td>" + agg.sum.lessons + "</td><td>" + agg.sum.tasks + "</td><td>" + agg.sum.newWrong + "</td></tr>";
+            $("dayTable").innerHTML = html;
+          } else {
+            $("tableCard").hidden = true;
+          }
+
+          // 今日时间线
+          if (rangeDays === 1) {
+            $("timelineCard").hidden = false;
+            var todayStr = fmtLocal(new Date());
+            var log = loadJSON(keyOf(current, "log"), []).filter(function (e) { return e.d === todayStr; });
+            if (!log.length) {
+              $("timeline").innerHTML = '<li class="empty">今天还没有学习记录。</li>';
+            } else {
+              $("timeline").innerHTML = log.map(function (e) {
+                var t = new Date(e.t);
+                var hm = String(t.getHours()).padStart(2, "0") + ":" + String(t.getMinutes()).padStart(2, "0");
+                return '<li class="tl-' + esc(e.type) + '"><time>' + hm + "</time><span>" + esc(e.detail) + "</span></li>";
+              }).join("");
+            }
+          } else {
+            $("timelineCard").hidden = true;
+          }
+
+          // 未掌握摘要（不随时间范围变化）
+          var wrong = loadJSON(keyOf(current, "wrongBook"), []);
+          if (!wrong.length) {
+            $("weakWrong").innerHTML = '<p class="empty">错题本是空的——没有待复核的错题。</p>';
+          } else {
+            $("weakWrong").innerHTML = wrong.slice(-15).reverse().map(function (w) {
+              return '<div class="weak-item"><strong><span class="weak-tag">' + esc(w.subjectLabel) + "</span>" + esc(w.question) +
+                "</strong><p>正确答案：" + esc(w.correct) + "（孩子选了：" + esc(w.chosen) + "）· " + esc(String(w.date).slice(5)) + "</p></div>";
+            }).join("");
+          }
+
+          var scores = loadJSON(keyOf(current, "scores"), []);
+          var latest = {};
+          scores.forEach(function (s) { latest[s.subject + ":" + s.lesson] = s; });
+          var weak = Object.keys(latest).map(function (k) { return latest[k]; }).filter(function (s) {
+            return s.total && s.score / s.total < 0.6;
+          });
+          if (!weak.length) {
+            $("weakLessons").innerHTML = '<p class="empty">没有正确率低于 60% 的课程，继续保持。</p>';
+          } else {
+            $("weakLessons").innerHTML = weak.map(function (s) {
+              var name = s.lessonTitle
+                ? (s.subjectLabel || s.subject) + "《" + s.lessonTitle + "》"
+                : (s.subjectLabel || s.subject) + " 第 " + (s.lesson + 1) + " 个知识点";
+              return '<div class="weak-item"><strong>' + esc(name) + "</strong><p>最近一次小测 " + s.score + "/" + s.total +
+                "（" + Math.round((s.score / s.total) * 100) + "%）· " + esc(String(s.date).slice(5)) + "，建议重学并再测一遍</p></div>";
+            }).join("");
+          }
+        }
+
+        /* ---------- 范围切换 ---------- */
+        Array.prototype.forEach.call(document.querySelectorAll("[data-range]"), function (b) {
+          b.addEventListener("click", function () {
+            rangeDays = Number(b.dataset.range);
+            Array.prototype.forEach.call(document.querySelectorAll("[data-range]"), function (x) {
+              x.classList.toggle("active", x === b);
+            });
+            render();
+          });
+        });
+
+        /* ---------- 复制汇总 ---------- */
+        $("copyBtn").addEventListener("click", function () {
+          var days = lastNDays(rangeDays);
+          var agg = aggregate(current, days);
+          var label = rangeDays === 1 ? "今日" : "最近 " + rangeDays + " 天";
+          var lines = [current.name + " " + label + "学习汇总（" + days[0] + (rangeDays > 1 ? " ~ " + days[days.length - 1] : "") + "）",
+            "学习时长：" + fmtMin(agg.sum.sec),
+            "小测：" + agg.sum.quizzes + " 次，正确率 " + (agg.sum.pct === null ? "—" : agg.sum.pct + "%"),
+            "学完知识点：" + agg.sum.lessons + " 个；完成任务：" + agg.sum.tasks + " 项；新增错题：" + agg.sum.newWrong + " 道"];
+          var wrong = loadJSON(keyOf(current, "wrongBook"), []);
+          if (wrong.length) {
+            lines.push("待复核错题 " + wrong.length + " 道，最近的：");
+            wrong.slice(-5).reverse().forEach(function (w) { lines.push("· [" + w.subjectLabel + "] " + w.question); });
+          }
+          var text = lines.join("\n");
+          function done() {
+            $("copyBtn").textContent = "已复制";
+            $("copyBtn").classList.add("done");
+            setTimeout(function () { $("copyBtn").textContent = "复制汇总文本"; $("copyBtn").classList.remove("done"); }, 2000);
+          }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done, function () {});
+          } else {
+            var ta = document.createElement("textarea");
+            ta.value = text; document.body.appendChild(ta); ta.select();
+            try { document.execCommand("copy"); done(); } catch (e) { /* 忽略 */ }
+            document.body.removeChild(ta);
+          }
+        });
+
+        render();
+      })();
+    </script>
+  </body>
+</html>

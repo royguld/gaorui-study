@@ -104,6 +104,29 @@
     return streak;
   }
 
+  /* ---------- 学习过程记录（供家长报告页使用） ---------- */
+
+  function logEvent(type, detail) {
+    const log = loadJSON("log", []);
+    log.push({ t: Date.now(), d: fmtDate(new Date()), type: type, detail: String(detail) });
+    while (log.length > 600) log.shift();
+    saveJSON("log", log);
+  }
+
+  /* 学习时长：页面可见且 3 分钟内有过操作时，每 30 秒累计一次 */
+  let lastActivity = Date.now();
+  ["click", "keydown", "scroll", "touchstart", "pointerdown"].forEach(function (ev) {
+    document.addEventListener(ev, function () { lastActivity = Date.now(); }, { passive: true });
+  });
+  setInterval(function () {
+    if (document.visibilityState === "hidden") return;
+    if (Date.now() - lastActivity > 180000) return;
+    const key = fmtDate(new Date());
+    const time = loadJSON("time", {});
+    time[key] = (time[key] || 0) + 30;
+    saveJSON("time", time);
+  }, 30000);
+
   /* ---------- 运行状态 ---------- */
 
   let currentSubjectKey = subjectKeys[0];
@@ -257,7 +280,10 @@
         else set.delete(idx);
         setTodayTaskState(currentSubjectKey, Array.from(set));
         box.closest(".task").classList.toggle("done", box.checked);
-        if (box.checked) markActiveToday();
+        if (box.checked) {
+          markActiveToday();
+          logEvent("task", subject.label + "任务：" + (subject.tasks[idx] ? subject.tasks[idx][0] : "任务" + (idx + 1)));
+        }
       });
     });
   }
@@ -466,11 +492,14 @@
       date: todayKey,
       subject: currentSubjectKey,
       lesson: currentLessonIndex,
+      subjectLabel: subject.label,
+      lessonTitle: lesson.title,
       score: score,
       total: quizView.length,
     });
     while (scores.length > 300) scores.shift();
     saveJSON("scores", scores);
+    logEvent("quiz", subject.label + "《" + lesson.title + "》小测 " + score + "/" + quizView.length);
 
     markActiveToday();
     quizGraded = true;
@@ -521,8 +550,10 @@
       .join("");
     reviewQueue.querySelectorAll(".rq-done").forEach(function (btn) {
       btn.addEventListener("click", function () {
+        const item = wrongBook[Number(btn.dataset.rq)];
         wrongBook.splice(Number(btn.dataset.rq), 1);
         saveJSON("wrongBook", wrongBook);
+        if (item) logEvent("review_done", "复核完成：" + item.question);
         renderReviewQueue();
       });
     });
@@ -627,11 +658,14 @@
 
   markDone.addEventListener("click", function () {
     const key = lessonKey(currentSubjectKey, currentLessonIndex);
+    const subject = subjects[currentSubjectKey];
+    const lesson = getLesson();
     if (completedLessons.has(key)) {
       completedLessons.delete(key);
     } else {
       completedLessons.add(key);
       markActiveToday();
+      logEvent("lesson_done", "学完 " + subject.label + "《" + lesson.title + "》");
     }
     saveJSON("completed", Array.from(completedLessons));
     render();

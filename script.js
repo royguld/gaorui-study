@@ -698,6 +698,29 @@ function computeStreak() {
   return streak;
 }
 
+/* ========== 学习过程记录（供家长报告页使用） ========== */
+
+function logEvent(type, detail) {
+  const log = loadJSON("grx:log", []);
+  log.push({ t: Date.now(), d: fmtDate(new Date()), type: type, detail: String(detail) });
+  while (log.length > 600) log.shift();
+  saveJSON("grx:log", log);
+}
+
+/* 学习时长：页面可见且 3 分钟内有过操作时，每 30 秒累计一次 */
+let lastActivity = Date.now();
+["click", "keydown", "scroll", "touchstart", "pointerdown"].forEach((ev) => {
+  document.addEventListener(ev, () => { lastActivity = Date.now(); }, { passive: true });
+});
+setInterval(() => {
+  if (document.visibilityState === "hidden") return;
+  if (Date.now() - lastActivity > 180000) return;
+  const key = fmtDate(new Date());
+  const time = loadJSON("grx:time", {});
+  time[key] = (time[key] || 0) + 30;
+  saveJSON("grx:time", time);
+}, 30000);
+
 /* ========== 状态 ========== */
 
 let currentSubjectKey = "math";
@@ -855,7 +878,10 @@ function renderTasks(subject) {
       else now.delete(idx);
       setTodayTaskState(currentSubjectKey, [...now]);
       box.closest(".task").classList.toggle("done", box.checked);
-      if (box.checked) markActiveToday();
+      if (box.checked) {
+        markActiveToday();
+        logEvent("task", `${subject.label}任务：${subject.tasks[idx] ? subject.tasks[idx][0] : `任务${idx + 1}`}`);
+      }
     });
   });
 }
@@ -1029,9 +1055,18 @@ function gradeQuiz() {
   while (wrongBook.length > 60) wrongBook.shift();
   saveJSON("grx:wrongBook", wrongBook);
 
-  scores.push({ date: todayKey, subject: currentSubjectKey, lesson: currentLessonIndex, score, total: quizView.length });
+  scores.push({
+    date: todayKey,
+    subject: currentSubjectKey,
+    lesson: currentLessonIndex,
+    subjectLabel: subject.label,
+    lessonTitle: lesson.title,
+    score,
+    total: quizView.length,
+  });
   while (scores.length > 300) scores.shift();
   saveJSON("grx:scores", scores);
+  logEvent("quiz", `${subject.label}《${lesson.title}》小测 ${score}/${quizView.length}`);
 
   markActiveToday();
   quizGraded = true;
@@ -1069,8 +1104,10 @@ function renderReviewQueue() {
 
   reviewQueue.querySelectorAll(".rq-done").forEach((btn) => {
     btn.addEventListener("click", () => {
+      const item = wrongBook[Number(btn.dataset.rq)];
       wrongBook.splice(Number(btn.dataset.rq), 1);
       saveJSON("grx:wrongBook", wrongBook);
+      if (item) logEvent("review_done", `复核完成：${item.question}`);
       renderReviewQueue();
     });
   });
@@ -1178,11 +1215,14 @@ speakLesson.addEventListener("click", () => {
 /* 标记已学：可切换 */
 markDone.addEventListener("click", () => {
   const key = lessonKey(currentSubjectKey, currentLessonIndex);
+  const subject = subjects[currentSubjectKey];
+  const lesson = subject.lessons[currentLessonIndex];
   if (completedLessons.has(key)) {
     completedLessons.delete(key);
   } else {
     completedLessons.add(key);
     markActiveToday();
+    logEvent("lesson_done", `学完 ${subject.label}《${lesson.title}》`);
   }
   saveJSON("completedLessons", [...completedLessons]);
   render();

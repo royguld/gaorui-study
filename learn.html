@@ -31,6 +31,7 @@
         <nav class="subject-nav" aria-label="科目导航"></nav>
 
         <a class="sidebar-link" href="./home.html">⇄ 切换孩子 · 返回起始页</a>
+        <a class="sidebar-link" id="reportLink" href="./report.html">学习报告 · 给家长看</a>
 
         <div class="sidebar-note">
           <span>今日原则</span>
@@ -153,6 +154,7 @@
         document.getElementById("brandMark").textContent = name[0];
         document.getElementById("brandTitle").textContent = name + "学习舱";
         document.getElementById("brandSub").textContent = child.student.grade + " · " + child.student.goal;
+        document.getElementById("reportLink").href = "./report.html?child=" + encodeURIComponent(child.podId);
       })();
     </script>
     <script src="./pod-runtime.js"></script>
