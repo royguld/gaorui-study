@@ -730,6 +730,8 @@ let animationTimer = null;
 let selectedWeek = currentWeekNum;
 let quizView = []; // 当前小测（选项已乱序）
 let quizGraded = false;
+let quizEngine = null;
+let dynamicQuiz = false;
 
 /* ========== DOM ========== */
 
@@ -1128,7 +1130,8 @@ function render() {
 
 function fullRender() {
   render();
-  renderQuiz(subjects[currentSubjectKey]);
+  dynamicQuiz = quizEngine ? quizEngine.refresh() : false;
+  if (!dynamicQuiz) renderQuiz(subjects[currentSubjectKey]);
   renderReviewQueue();
 }
 
@@ -1229,12 +1232,61 @@ markDone.addEventListener("click", () => {
 });
 
 submitQuiz.addEventListener("click", () => {
+  if (dynamicQuiz) return; // AI 小测由 QuizEngine 接管
   if (quizGraded) {
     renderQuiz(subjects[currentSubjectKey]);
     return;
   }
   gradeQuiz();
 });
+
+/* ========== AI 自适应小测引擎（有 Key 时接管小测面板） ========== */
+
+if (window.QuizEngine) {
+  quizEngine = window.QuizEngine.mount({
+    els: { box: quizBox, actionBtn: submitQuiz, result: quizResult },
+    storage: {
+      load: (k, fb) => loadJSON("grx:" + k, fb),
+      save: (k, v) => saveJSON("grx:" + k, v),
+    },
+    getApiKey: () => {
+      try { return localStorage.getItem("family:apiKey") || ""; } catch (e) { return ""; }
+    },
+    model: "qwen-plus",
+    grade: "初二升初三",
+    getContext: () => ({
+      subjectKey: currentSubjectKey,
+      subjectLabel: subjects[currentSubjectKey].label,
+      lesson: subjects[currentSubjectKey].lessons[currentLessonIndex],
+      lessonIndex: currentLessonIndex,
+    }),
+    hooks: {
+      logEvent,
+      pushScore: (e) => {
+        const subject = subjects[currentSubjectKey];
+        const lesson = subject.lessons[currentLessonIndex];
+        scores.push({
+          date: todayKey, subject: currentSubjectKey, lesson: currentLessonIndex,
+          subjectLabel: subject.label, lessonTitle: lesson.title, score: e.score, total: e.total,
+        });
+        while (scores.length > 300) scores.shift();
+        saveJSON("grx:scores", scores);
+        markActiveToday();
+      },
+      pushWrong: (w) => {
+        const subject = subjects[currentSubjectKey];
+        wrongBook.push({
+          date: todayKey, subjectLabel: subject.label,
+          lessonTitle: subject.lessons[currentLessonIndex].title,
+          question: w.question, correct: w.correct, chosen: w.chosen,
+        });
+        while (wrongBook.length > 60) wrongBook.shift();
+        saveJSON("grx:wrongBook", wrongBook);
+        renderReviewQueue();
+      },
+    },
+  });
+}
 
 /* ========== 启动 ========== */
 

@@ -811,3 +811,22 @@ button {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+/* ===== AI 自适应小测 + 富课文分节 ===== */
+.qe-status { margin: 0 0 10px; font-size: 12.5px; color: #64748b; font-weight: 700; }
+.qe-tip, .qe-loading { margin: 8px 0; font-size: 13px; color: #64748b; line-height: 1.6; }
+.qe-loading { color: #087872; font-weight: 700; }
+.qe-error { margin: 8px 0; font-size: 13px; color: #b13c2e; font-weight: 700; }
+.qe-done { margin: 8px 0; font-size: 14px; color: #1d7a4f; font-weight: 700; line-height: 1.6; }
+.qe-chip { display: inline-block; font-size: 11px; border-radius: 5px; padding: 2px 7px; margin-right: 6px; vertical-align: 1px; }
+.qe-choice { background: #edf5ff; color: #1f5d8f; }
+.qe-short { background: #e7f7f5; color: #087872; }
+.qe-think { background: #fff4df; color: #d88a18; }
+.qe-answer { width: 100%; margin-top: 8px; border: 1px solid #dbe5ee; border-radius: 7px; padding: 9px 11px; font: inherit; font-size: 13px; background: #fbfdff; resize: vertical; }
+.qe-feedback { margin-top: 8px; border-radius: 7px; padding: 9px 11px; font-size: 12.5px; line-height: 1.6; }
+.qe-fb-right { background: #e9f7f0; color: #1d7a4f; }
+.qe-fb-partial { background: #fff4df; color: #8a5d10; }
+.qe-fb-wrong { background: #fdeeec; color: #a03428; }
+.lesson-sections details { border: 1px solid #e3edf5; border-radius: 7px; background: #f7fbff; margin: 0 0 8px; padding: 9px 12px; }
+.lesson-sections summary { cursor: pointer; font-size: 14px; font-weight: 700; color: #1f5d8f; }
+.lesson-sections p { margin: 8px 0 0; font-size: 13.5px; color: #33506b; line-height: 1.7; }

@@ -315,12 +315,12 @@
             "1. 薄弱科目（根据长短处、成绩偏差、成绩单照片判断）：多排知识点（3-5 个），status 标为“补差重点”，从孩子可能卡住的基础环节讲起，小测题每课 3-5 道。",
             "2. 中等科目：2-3 个知识点，status 标为“需巩固”。",
             "3. 优势科目：1-2 个知识点即可，status 标为“巩固拔高”，可以适当提高难度。",
-            "4. 每个知识点都要有：一句话讲清(oneLine)、生活例子(example)、3-4 个分步讲解(steps + narration)、关键词(terms)、易错提醒(mistake)、第二天复核任务(review)、选择题小测(quiz)。",
+            "4. 每个知识点是一份能让孩子学 30 分钟的完整课件，必须包含：一句话讲清(oneLine)、4-6 节详细讲解(sections，每节 150-300 字，含概念讲解、2-3 道带完整解题过程的例题、常见错误剖析、小结)、生活例子(example)、3-4 个分步讲解(steps + narration)、关键词(terms)、易错提醒(mistake)、第二天复核任务(review)、5-8 个可考核的考点大纲(points，用于之后 AI 反复出题判定掌握度)、3 道基础选择题(quiz，离线备用)。",
             "5. 小测答案下标从 0 开始且必须小于选项数，正确答案位置要随机分布。",
             "6. 不能胡编教材内容；不确定的表述要保守。",
             "",
             "请只返回 JSON，不要 Markdown，不要解释。结构：",
-            '{"subjects": {"math": {"label": "数学", "tasks": [["任务标题","任务说明"]], "lessons": [{"title": "知识点", "status": "补差重点", "oneLine": "...", "example": "...", "steps": ["...","...","..."], "terms": [["关键词","解释"]], "mistake": "...", "narration": ["...","...","..."], "review": ["...","..."], "quiz": [["题目",["A","B","C"],0]]}]}}}',
+            '{"subjects": {"math": {"label": "数学", "tasks": [["任务标题","任务说明"]], "lessons": [{"title": "知识点", "status": "补差重点", "oneLine": "...", "sections": [{"h": "小节标题", "text": "150-300字讲解"}], "example": "...", "steps": ["...","...","..."], "terms": [["关键词","解释"]], "mistake": "...", "narration": ["...","...","..."], "review": ["...","..."], "points": [{"id": "p1", "label": "考点名称"}], "quiz": [["题目",["A","B","C"],0]]}]}}}',
           ].filter(Boolean).join("\n");
         }
 
@@ -367,8 +367,18 @@
                 if (t && typeof t === "object") return [String(t.term || ""), String(t.meaning || "")];
                 return null;
               }).filter(Boolean);
+              var sections = (l.sections || []).slice(0, 6).map(function (s) {
+                if (s && typeof s === "object" && (s.text || s.h)) return { h: String(s.h || ""), text: String(s.text || "") };
+                return null;
+              }).filter(Boolean);
+              var points = (l.points || []).slice(0, 8).map(function (pt, pi) {
+                if (pt && typeof pt === "object" && pt.label) return { id: String(pt.id || "p" + (pi + 1)), label: String(pt.label) };
+                if (typeof pt === "string" && pt) return { id: "p" + (pi + 1), label: pt };
+                return null;
+              }).filter(Boolean);
               return {
                 title: String(l.title || "知识点"), status: String(l.status || "待学习"),
+                sections: sections, points: points,
                 oneLine: String(l.oneLine || "用一句话说清这个知识点。"), example: String(l.example || "结合生活例子理解。"),
                 steps: steps, terms: terms.length ? terms : [[steps[0], "关键步骤"]],
                 mistake: String(l.mistake || "不要只记结论，要能说出原因。"),
@@ -437,6 +447,12 @@
             $("saveStatus").className = "status bad";
             return;
           }
+          // 把 API Key 存进孩子档案（学习舱每天 AI 出题要用），同时存一份设备级 Key
+          var key = $("apiKey").value.trim();
+          if (key) {
+            lastData.apiKey = key;
+            try { localStorage.setItem("family:apiKey", key); } catch (e) { /* 忽略 */ }
+          }
           if (!kids.some(function (c) { return c.podId === lastData.podId; })) {
             kids.push(lastData);
             try { localStorage.setItem("family:children", JSON.stringify(kids)); } catch (e) {
@@ -449,7 +465,10 @@
           $("saveStatus").innerHTML =
             '已保存！<a href="' + url + '">马上进入 ' +
             String(lastData.student.name).replace(/[&<>"']/g, "") +
-            ' 的学习舱 →</a>　或　<a href="./home.html">返回起始页</a>';
+            ' 的学习舱 →</a>　或　<a href="./home.html">返回起始页</a>' +
+            (lastData.apiKey || localStorage.getItem("family:apiKey")
+              ? ""
+              : '<br />注意：没有填 API Key，学习舱将无法每天 AI 出新题（只有基础题）。可回到方式一填 Key 后重新保存，或在起始页"AI Key 设置"里补填。');
           $("saveStatus").className = "status ok";
         });
 

@@ -136,6 +136,8 @@
   let quizView = [];
   let quizGraded = false;
   let speaking = false;
+  let quizEngine = null;
+  let dynamicQuiz = false;
 
   /* ---------- DOM ---------- */
 
@@ -330,6 +332,19 @@
     lessonSubject.textContent = subject.label;
     lessonTitle.textContent = lesson.title;
     lessonOneLine.textContent = lesson.oneLine;
+
+    /* 富课文分节（新版课程带 sections，旧课程自动跳过） */
+    let secBox = document.getElementById("lessonSections");
+    if (!secBox) {
+      lessonOneLine.insertAdjacentHTML("afterend", '<div id="lessonSections" class="lesson-sections"></div>');
+      secBox = document.getElementById("lessonSections");
+    }
+    secBox.innerHTML = (lesson.sections || [])
+      .map(function (s, i) {
+        return "<details" + (i === 0 ? " open" : "") + "><summary>" + esc(s.h || "第 " + (i + 1) + " 节") +
+          "</summary><p>" + esc(s.text || "").replace(/\n/g, "<br />") + "</p></details>";
+      })
+      .join("");
     lessonExample.textContent = lesson.example;
     mistakeText.textContent = lesson.mistake;
 
@@ -574,7 +589,8 @@
 
   function fullRender() {
     render();
-    renderQuiz();
+    dynamicQuiz = quizEngine ? quizEngine.refresh() : false;
+    if (!dynamicQuiz) renderQuiz();
     renderReviewQueue();
   }
 
@@ -672,12 +688,66 @@
   });
 
   submitQuiz.addEventListener("click", function () {
+    if (dynamicQuiz) return; // AI 小测由 QuizEngine 接管
     if (quizGraded) {
       renderQuiz();
       return;
     }
     gradeQuiz();
   });
+
+  /* ---------- AI 自适应小测引擎（有 Key 时接管小测面板） ---------- */
+
+  if (window.QuizEngine) {
+    quizEngine = window.QuizEngine.mount({
+      els: { box: quizBox, actionBtn: submitQuiz, result: quizResult },
+      storage: { load: loadJSON, save: saveJSON },
+      getApiKey: function () {
+        if (learningData.apiKey) return learningData.apiKey;
+        try { return localStorage.getItem("family:apiKey") || ""; } catch (e) { return ""; }
+      },
+      model: learningData.model || "qwen-plus",
+      grade: student.grade || "",
+      getContext: function () {
+        return {
+          subjectKey: currentSubjectKey,
+          subjectLabel: subjects[currentSubjectKey].label,
+          lesson: getLesson(),
+          lessonIndex: currentLessonIndex,
+        };
+      },
+      hooks: {
+        logEvent: logEvent,
+        pushScore: function (e) {
+          scores.push({
+            date: todayKey,
+            subject: currentSubjectKey,
+            lesson: currentLessonIndex,
+            subjectLabel: subjects[currentSubjectKey].label,
+            lessonTitle: getLesson().title,
+            score: e.score,
+            total: e.total,
+          });
+          while (scores.length > 300) scores.shift();
+          saveJSON("scores", scores);
+          markActiveToday();
+        },
+        pushWrong: function (w) {
+          wrongBook.push({
+            date: todayKey,
+            subjectLabel: subjects[currentSubjectKey].label,
+            lessonTitle: getLesson().title,
+            question: w.question,
+            correct: w.correct,
+            chosen: w.chosen,
+          });
+          while (wrongBook.length > 60) wrongBook.shift();
+          saveJSON("wrongBook", wrongBook);
+          renderReviewQueue();
+        },
+      },
+    });
+  }
 
   /* ---------- 启动 ---------- */
 

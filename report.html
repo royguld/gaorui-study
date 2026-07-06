@@ -104,6 +104,11 @@
         <ul class="timeline" id="timeline"></ul>
       </div>
 
+      <div class="card">
+        <h2>考点掌握进度 <small>AI 小测按考点判定，连对 2 次为掌握；每科每天上限 90 题</small></h2>
+        <div id="masteryBox"></div>
+      </div>
+
       <div class="two-col">
         <div class="card">
           <h2>未掌握知识点摘要 <small>错题本中待复核的题目</small></h2>
@@ -152,7 +157,7 @@
         });
         function keyOf(child, k) {
           if (child.prefix) return child.prefix + k;
-          return { time: "grx:time", log: "grx:log", scores: "grx:scores", wrongBook: "grx:wrongBook", activeDays: "grx:activeDays" }[k];
+          return { time: "grx:time", log: "grx:log", scores: "grx:scores", wrongBook: "grx:wrongBook", activeDays: "grx:activeDays", mastery: "grx:mastery", quota: "grx:quota" }[k];
         }
         var current = children[0];
         var urlChild = new URLSearchParams(location.search).get("child");
@@ -255,6 +260,40 @@
             }
           } else {
             $("timelineCard").hidden = true;
+          }
+
+          // 考点掌握进度 + 今日题量（AI 小测数据）
+          var mastery = loadJSON(keyOf(current, "mastery"), {});
+          var quota = loadJSON(keyOf(current, "quota"), {})[fmtLocal(new Date())] || {};
+          var lessonsKeys = Object.keys(mastery).filter(function (k) { return mastery[k].pointList; });
+          if (!lessonsKeys.length && !Object.keys(quota).length) {
+            $("masteryBox").innerHTML = '<p class="empty">还没有 AI 小测记录。孩子在学习舱点"开始新一轮小测"后，这里会显示各科题量和考点掌握情况。</p>';
+          } else {
+            var bySubject = {};
+            lessonsKeys.forEach(function (k) {
+              var e = mastery[k];
+              var s = bySubject[e.subjectLabel] || { mastered: 0, total: 0, pending: [] };
+              (e.pointList || []).forEach(function (p) {
+                s.total++;
+                var st = (e.points || {})[p.id] || {};
+                if (st.mastered) s.mastered++;
+                else s.pending.push("《" + e.lessonTitle + "》" + p.label + (st.wrong ? "（错 " + st.wrong + " 次）" : ""));
+              });
+              bySubject[e.subjectLabel] = s;
+            });
+            Object.keys(quota).forEach(function (label) {
+              if (!bySubject[label]) bySubject[label] = { mastered: 0, total: 0, pending: [] };
+            });
+            $("masteryBox").innerHTML = Object.keys(bySubject).map(function (label) {
+              var s = bySubject[label];
+              var used = quota[label] || 0;
+              return '<div class="weak-item"><strong><span class="weak-tag">' + esc(label) + "</span>今日 " + used +
+                "/90 题 · 考点掌握 " + s.mastered + "/" + s.total + "</strong>" +
+                (s.pending.length
+                  ? "<p>待掌握：" + s.pending.slice(0, 8).map(esc).join("；") + (s.pending.length > 8 ? " 等 " + s.pending.length + " 个" : "") + "</p>"
+                  : (s.total ? "<p>该科已开考点全部掌握。</p>" : "<p>今天做了题，考点数据生成中。</p>")) +
+                "</div>";
+            }).join("");
           }
 
           // 未掌握摘要（不随时间范围变化）
