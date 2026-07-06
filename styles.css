@@ -118,6 +118,23 @@ button {
   transform: translateX(2px);
 }
 
+.sidebar-link {
+  display: block;
+  color: #cfe3f5;
+  text-decoration: none;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  padding: 10px 12px;
+  transition: background 0.18s ease;
+}
+
+.sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
 .sidebar-note {
   margin-top: auto;
   background: rgba(255, 255, 255, 0.08);

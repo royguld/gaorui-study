@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>全学段教材包 · 人教/统编课程分类</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        --bg: #f7fafc;
+        --panel: #ffffff;
+        --ink: #14283f;
+        --muted: #64748b;
+        --line: #dbe5ee;
+        --teal: #0f9f9a;
+        --teal-soft: #e7f7f5;
+        --amber: #d88a18;
+        --amber-soft: #fff4df;
+        --shadow: 0 18px 44px rgba(21, 45, 70, 0.09);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          linear-gradient(rgba(20, 40, 63, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(20, 40, 63, 0.035) 1px, transparent 1px),
+          var(--bg);
+        background-size: 28px 28px;
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+      .top {
+        display: flex; justify-content: space-between; align-items: center;
+        gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+      }
+      .brand { display: flex; align-items: center; gap: 12px; }
+      .brand-mark {
+        width: 44px; height: 44px; display: grid; place-items: center;
+        background: #f5b544; color: #10263b; border-radius: 8px;
+        font-weight: 800; font-size: 20px;
+      }
+      h1 { margin: 0; font-size: 24px; }
+      .sub { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+      .back-link {
+        color: #1f5d8f; text-decoration: none; font-size: 14px;
+        background: #edf5ff; border-radius: 7px; padding: 9px 14px;
+      }
+      .notice {
+        background: var(--amber-soft); border: 1px solid #f2dfbd; border-radius: 8px;
+        padding: 12px 14px; font-size: 13px; color: #7a5510; line-height: 1.6;
+        margin-bottom: 18px;
+      }
+      .picker {
+        background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+        box-shadow: var(--shadow); padding: 18px; margin-bottom: 18px;
+      }
+      .stage-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+      .stage-tab {
+        border: 1px solid var(--line); background: #f5f8fb; color: #33506b;
+        border-radius: 999px; padding: 9px 18px; font-size: 14px; cursor: pointer;
+        font-family: inherit;
+      }
+      .stage-tab.active { background: var(--teal-soft); border-color: var(--teal); color: #087872; font-weight: 700; }
+      .grade-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+      .grade-chip {
+        border: 1px solid var(--line); background: #ffffff; color: #33506b;
+        border-radius: 7px; padding: 8px 14px; font-size: 13px; cursor: pointer;
+        font-family: inherit;
+      }
+      .grade-chip.active { background: var(--ink); border-color: var(--ink); color: #ffffff; font-weight: 700; }
+      .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; }
+      .toolbar h2 { margin: 0; font-size: 19px; }
+      .copy-btn {
+        border: 0; background: var(--teal); color: #ffffff; border-radius: 7px;
+        padding: 10px 16px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+      }
+      .copy-btn.done { background: #28a36a; }
+      .subject-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 14px; }
+      .subject-card {
+        background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+        box-shadow: var(--shadow); padding: 16px;
+      }
+      .subject-card h3 { margin: 0 0 6px; font-size: 16px; }
+      .books { color: var(--muted); font-size: 12.5px; margin: 0 0 10px; line-height: 1.5; }
+      .focus { display: flex; flex-wrap: wrap; gap: 6px; }
+      .focus span {
+        background: var(--teal-soft); color: #087872; border-radius: 6px;
+        padding: 4px 9px; font-size: 12.5px;
+      }
+      .meta-note { margin: 22px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+      .loading { color: var(--muted); padding: 30px 0; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <div class="brand">
+          <div class="brand-mark">材</div>
+          <div>
+            <h1>全学段教材包</h1>
+            <p class="sub">人教/统编常见课程分类 · 小学到高中 12 个年级</p>
+          </div>
+        </div>
+        <a class="back-link" href="./index.html">← 返回高睿学习舱</a>
+      </div>
+
+      <div class="notice">
+        教材包提供的是<strong>课程分类骨架</strong>（科目、册别、学习重点），不是教材原文。各地区、各学校的教材版本、进度和选科组合可能不同，请以学校实际发的教材为准。可点击"复制本年级教材包"，把文本粘贴到学习舱生成器或任何 AI 工具里辅导孩子。
+      </div>
+
+      <div class="picker">
+        <div class="stage-tabs" id="stageTabs"></div>
+        <div class="grade-chips" id="gradeChips"></div>
+      </div>
+
+      <div class="toolbar">
+        <h2 id="gradeTitle">加载中...</h2>
+        <button class="copy-btn" id="copyBtn" hidden>复制本年级教材包</button>
+      </div>
+      <div class="subject-grid" id="subjectGrid"><p class="loading">正在加载教材包数据...</p></div>
+      <p class="meta-note" id="metaNote"></p>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+        const STAGES = [
+          ["primary", "小学"],
+          ["junior", "初中"],
+          ["senior", "高中"],
+        ];
+        let packs = {};
+        let currentStage = "primary";
+        let currentGrade = "";
+
+        const stageTabs = document.getElementById("stageTabs");
+        const gradeChips = document.getElementById("gradeChips");
+        const gradeTitle = document.getElementById("gradeTitle");
+        const subjectGrid = document.getElementById("subjectGrid");
+        const metaNote = document.getElementById("metaNote");
+        const copyBtn = document.getElementById("copyBtn");
+
+        function esc(v) {
+          return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+          });
+        }
+
+        function packText(stageKey, gradeKey) {
+          const pack = packs[stageKey];
+          const grade = pack.grades[gradeKey];
+          const lines = [];
+          lines.push("===== 内置教材包：" + pack.meta.name + " / " + gradeKey + " =====");
+          lines.push("说明：" + pack.meta.note);
+          lines.push("");
+          lines.push("年级课程分类：");
+          grade.subjects.forEach(function (s) {
+            lines.push("- " + s.name);
+            lines.push("  教材册别：" + s.books.join("、"));
+            lines.push("  学习重点：" + s.focus.join("、"));
+          });
+          lines.push("");
+          lines.push("生成要求：请结合上述年级课程分类，为孩子生成各科知识点课件、小测题、第二天复核任务；如家长另有学校作业或错题资料，以家长资料优先。");
+          return lines.join("\n");
+        }
+
+        function render() {
+          stageTabs.innerHTML = STAGES.map(function (s) {
+            return '<button class="stage-tab ' + (s[0] === currentStage ? "active" : "") + '" data-stage="' + s[0] + '">' + s[1] + "</button>";
+          }).join("");
+          stageTabs.querySelectorAll(".stage-tab").forEach(function (tab) {
+            tab.addEventListener("click", function () {
+              currentStage = tab.dataset.stage;
+              currentGrade = Object.keys(packs[currentStage].grades)[0];
+              render();
+            });
+          });
+
+          const grades = Object.keys(packs[currentStage].grades);
+          if (!grades.includes(currentGrade)) currentGrade = grades[0];
+          gradeChips.innerHTML = grades.map(function (g) {
+            return '<button class="grade-chip ' + (g === currentGrade ? "active" : "") + '" data-grade="' + esc(g) + '">' + esc(g) + "</button>";
+          }).join("");
+          gradeChips.querySelectorAll(".grade-chip").forEach(function (chip) {
+            chip.addEventListener("click", function () {
+              currentGrade = chip.dataset.grade;
+              render();
+            });
+          });
+
+          const pack = packs[currentStage];
+          const grade = pack.grades[currentGrade];
+          gradeTitle.textContent = currentGrade + " · " + grade.subjects.length + " 个科目";
+          copyBtn.hidden = false;
+          subjectGrid.innerHTML = grade.subjects.map(function (s) {
+            return (
+              '<div class="subject-card"><h3>' + esc(s.name) + "</h3>" +
+              '<p class="books">册别：' + esc(s.books.join("、")) + "</p>" +
+              '<div class="focus">' + s.focus.map(function (f) { return "<span>" + esc(f) + "</span>"; }).join("") + "</div></div>"
+            );
+          }).join("");
+          metaNote.textContent = pack.meta.name + " · " + pack.meta.note;
+        }
+
+        copyBtn.addEventListener("click", function () {
+          const text = packText(currentStage, currentGrade);
+          function done() {
+            copyBtn.textContent = "已复制，可粘贴到生成器";
+            copyBtn.classList.add("done");
+            setTimeout(function () {
+              copyBtn.textContent = "复制本年级教材包";
+              copyBtn.classList.remove("done");
+            }, 2200);
+          }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done, function () { fallback(); });
+          } else {
+            fallback();
+          }
+          function fallback() {
+            const ta = document.createElement("textarea");
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand("copy"); done(); } catch (e) { /* 忽略 */ }
+            document.body.removeChild(ta);
+          }
+        });
+
+        Promise.all(
+          STAGES.map(function (s) {
+            return fetch("./curriculum-" + s[0] + ".json").then(function (r) {
+              if (!r.ok) throw new Error(s[0] + " 加载失败");
+              return r.json().then(function (d) { return [s[0], d]; });
+            });
+          }),
+        )
+          .then(function (entries) {
+            entries.forEach(function (e) { packs[e[0]] = e[1]; });
+            currentGrade = Object.keys(packs[currentStage].grades)[0];
+            render();
+          })
+          .catch(function (err) {
+            subjectGrid.innerHTML = '<p class="loading">教材包加载失败：' + esc(err.message) + "。请刷新重试。</p>";
+          });
+      })();
+    </script>
+  </body>
+</html>
