@@ -327,6 +327,14 @@
     speak: podSpeak,
     supported: function () { return "speechSynthesis" in window; },
   };
+
+  /* 供运行时复用的 AI 能力（图解动画课堂等） */
+  window.PodAI = {
+    callText: callModelText,
+    callJson: callModel,
+    sanitizeSvg: sanitizeSvg,
+    friendlyError: friendlyError,
+  };
   /* 声音列表是异步加载的，先“预热”一次 */
   try {
     if ("speechSynthesis" in window) {

@@ -769,6 +769,225 @@
     actions.insertBefore(btn, actions.firstChild);
   })();
 
+  /* ---------- 🎬 图解动画课堂：AI 把每节课做成 5 幕带动画图解的小课件 ----------
+   * 每幕 = 幕标题 + 220-320 字详细讲解词 + 一张会动的 SVG 图解，老师配音自动连播。
+   * 生成一次缓存在本机（最多留 25 课，旧的自动清理），以后秒开。 */
+  (function () {
+    if (!window.PodAI) return;
+    const actions = document.querySelector(".lesson-actions");
+    if (!actions) return;
+
+    function getAIConfig() {
+      let ai = null;
+      if (learningData.ai && learningData.ai.apiKey) ai = learningData.ai;
+      else if (learningData.apiKey) ai = { apiKey: learningData.apiKey, model: learningData.model || "qwen-plus", endpoint: "" };
+      else {
+        try {
+          const c = JSON.parse(localStorage.getItem("family:aiConfig") || "null");
+          if (c && c.apiKey) ai = c;
+          else {
+            const k = localStorage.getItem("family:apiKey");
+            if (k) ai = { apiKey: k, model: "qwen-plus", endpoint: "" };
+          }
+        } catch (e) { /* 忽略 */ }
+      }
+      if (!ai || !ai.apiKey) return null;
+      return { apiKey: ai.apiKey, model: ai.model || "qwen-plus", endpoint: ai.endpoint || "" };
+    }
+
+    /* 弹层 */
+    const mask = document.createElement("div");
+    mask.className = "vl-mask";
+    mask.hidden = true;
+    mask.innerHTML =
+      '<div class="vl-box">' +
+      '<div class="vl-head"><strong id="vlTitle">图解动画课</strong><span id="vlSceneNo"></span><button class="vl-close" id="vlClose" type="button">✕</button></div>' +
+      '<div class="vl-body"><div class="vl-fig" id="vlFig"></div><h3 id="vlSceneTitle"></h3><p id="vlText"></p></div>' +
+      '<div class="vl-controls">' +
+      '<button id="vlPrev" type="button">◀ 上一幕</button>' +
+      '<span class="vl-dots" id="vlDots"></span>' +
+      '<button id="vlNext" type="button">下一幕 ▶</button>' +
+      '<button id="vlPlay" class="vl-play" type="button">🔊 自动连播</button>' +
+      '<button id="vlRedo" type="button">🔁 重新生成</button>' +
+      "</div></div>";
+    document.body.appendChild(mask);
+    const $v = (id) => document.getElementById(id);
+
+    let scenes = [];
+    let sceneIdx = 0;
+    let autoPlaying = false;
+    let generating = false;
+
+    function stopAuto() {
+      autoPlaying = false;
+      $v("vlPlay").textContent = "🔊 自动连播";
+      try { if ("speechSynthesis" in window) window.speechSynthesis.cancel(); } catch (e) { /* 忽略 */ }
+    }
+    function messageOnly(msg) {
+      scenes = [];
+      $v("vlSceneNo").textContent = "";
+      $v("vlSceneTitle").textContent = "";
+      $v("vlText").textContent = "";
+      $v("vlDots").innerHTML = "";
+      $v("vlFig").innerHTML = '<p class="vl-nofig"></p>';
+      $v("vlFig").querySelector(".vl-nofig").textContent = msg;
+      mask.hidden = false;
+    }
+    function showScene(i) {
+      if (!scenes.length) return;
+      sceneIdx = Math.max(0, Math.min(scenes.length - 1, i));
+      const s = scenes[sceneIdx];
+      $v("vlSceneNo").textContent = "第 " + (sceneIdx + 1) + " / " + scenes.length + " 幕";
+      $v("vlSceneTitle").textContent = s.title;
+      $v("vlText").textContent = s.text;
+      if (s.svg) $v("vlFig").innerHTML = s.svg; // 存入前和取出时都过了 sanitizeSvg 白名单
+      else { $v("vlFig").innerHTML = '<p class="vl-nofig">🖼 这一幕老师用语言描述，认真听～</p>'; }
+      $v("vlDots").innerHTML = scenes.map(function (_, di) {
+        return '<i class="' + (di === sceneIdx ? "on" : "") + '" data-d="' + di + '"></i>';
+      }).join("");
+      Array.prototype.forEach.call($v("vlDots").querySelectorAll("i"), function (d) {
+        d.addEventListener("click", function () { stopAuto(); showScene(Number(d.dataset.d)); });
+      });
+      $v("vlPrev").disabled = sceneIdx === 0;
+      $v("vlNext").disabled = sceneIdx === scenes.length - 1;
+    }
+    function playScene() {
+      if (!autoPlaying || !scenes.length) return;
+      const s = scenes[sceneIdx];
+      window.PodVoice.speak(s.title + "。" + s.text, function () {
+        if (!autoPlaying) return;
+        if (sceneIdx >= scenes.length - 1) { stopAuto(); return; }
+        showScene(sceneIdx + 1);
+        playScene();
+      });
+    }
+    $v("vlClose").addEventListener("click", function () { stopAuto(); mask.hidden = true; });
+    mask.addEventListener("click", function (e) { if (e.target === mask) { stopAuto(); mask.hidden = true; } });
+    $v("vlPrev").addEventListener("click", function () { stopAuto(); showScene(sceneIdx - 1); });
+    $v("vlNext").addEventListener("click", function () { stopAuto(); showScene(sceneIdx + 1); });
+    $v("vlPlay").addEventListener("click", function () {
+      if (autoPlaying) { stopAuto(); return; }
+      if (!scenes.length) return;
+      autoPlaying = true;
+      $v("vlPlay").textContent = "⏹ 停止连播";
+      playScene();
+    });
+    $v("vlRedo").addEventListener("click", function () {
+      stopAuto();
+      const all = loadJSON("visuals", {});
+      delete all[currentSubjectKey + ":" + currentLessonIndex];
+      saveJSON("visuals", all);
+      generate(subjects[currentSubjectKey], getLesson(), currentSubjectKey + ":" + currentLessonIndex);
+    });
+
+    /* 解析：@@幕 标题 \n 讲解词 ... <svg>...</svg> */
+    function parseScenes(raw) {
+      const parts = String(raw).split(/@@\s*幕/).map(function (s) { return s.trim(); }).filter(Boolean);
+      const out = [];
+      parts.forEach(function (p) {
+        const nl = p.indexOf("\n");
+        if (nl < 0) return;
+        const title = p.slice(0, nl).trim().replace(/^[:：、.\s]+/, "").slice(0, 20);
+        let rest = p.slice(nl + 1);
+        let svg = "";
+        const m = rest.match(/<svg[\s\S]*<\/svg>/i);
+        if (m) { svg = window.PodAI.sanitizeSvg(m[0]); rest = rest.replace(m[0], ""); }
+        const text = rest.replace(/```[a-z]*|```/gi, "").trim();
+        if (text.length >= 30) out.push({ title: title || "第" + (out.length + 1) + "幕", text: text.slice(0, 1500), svg: svg });
+      });
+      return out.slice(0, 8);
+    }
+
+    function saveVisual(key, sc) {
+      const all = loadJSON("visuals", {});
+      all[key] = { t: Date.now(), scenes: sc };
+      const keys = Object.keys(all);
+      if (keys.length > 25) {
+        keys.sort(function (a, b) { return (all[a].t || 0) - (all[b].t || 0); });
+        for (let i = 0; i < keys.length - 25; i++) delete all[keys[i]];
+      }
+      saveJSON("visuals", all);
+    }
+
+    function lessonBrief(lesson) {
+      const parts = [lesson.oneLine || ""];
+      (lesson.sections || []).slice(0, 6).forEach(function (s) { parts.push((s.h || "") + "：" + (s.text || "")); });
+      parts.push("步骤：" + (lesson.steps || []).join("；"));
+      (lesson.narration || []).forEach(function (n) { parts.push(n); });
+      if (lesson.example) parts.push("生活例子：" + lesson.example);
+      if (lesson.mistake) parts.push("易错提醒：" + lesson.mistake);
+      return parts.join("\n").slice(0, 5000);
+    }
+
+    function buildPrompt(subject, lesson) {
+      return (
+        "你是一位特级教师兼动画设计师。请把下面这节课做成给" + (student.grade || "中小学") + "孩子看的『图解动画课』，共 5 幕。\n" +
+        "科目：" + subject.label + "，课程：《" + lesson.title + "》\n课程材料：\n" + lessonBrief(lesson) + "\n\n" +
+        "每一幕的格式（严格遵守）：\n" +
+        "第一行：@@幕 幕标题（不超过12个字）\n" +
+        "接着是这一幕的讲解词，220-320字：像面对面讲课一样口语化，有比喻、有生活场景，一步一步推导。第1幕讲“这是什么、为什么有用”；第2-4幕把原理和方法层层讲透，其中必须有一幕是完整例题（题目、每一步怎么想、答案）；第5幕总结要点+易错提醒+一句鼓励。纯文本，禁止任何markdown符号。\n" +
+        "讲解词之后输出一个完整的 <svg>...</svg> 图解（每幕都必须有）：viewBox=\"0 0 600 400\"，白色背景，用基本图形和中文文字标注，字号不小于16，颜色鲜明；这一幕的关键过程必须用 <animate>、<animateTransform> 或 <animateMotion> 做 2-6 秒循环动画演示（例如：逐步画出的线、沿路径移动的点、逐个亮起的方块、跳动的数字标注）。图要和讲解词内容一一对应。禁止 script、事件属性、外部链接。\n" +
+        "除了 5 幕内容本身，不要输出任何开场白、结尾说明或其他文字。"
+      );
+    }
+
+    function openViewer(subject, lesson) {
+      $v("vlTitle").textContent = subject.label + "《" + lesson.title + "》· 图解动画课";
+      mask.hidden = false;
+      showScene(0);
+      autoPlaying = true; // 打开即自动连播，孩子零操作
+      $v("vlPlay").textContent = "⏹ 停止连播";
+      playScene();
+    }
+
+    function generate(subject, lesson, key) {
+      if (generating) return;
+      const cfg = getAIConfig();
+      $v("vlTitle").textContent = subject.label + "《" + lesson.title + "》· 图解动画课";
+      if (!cfg) { messageOnly("需要先在起始页「AI Key 设置」里配置 API Key，才能生成图解动画课。"); return; }
+      generating = true;
+      vlBtn.disabled = true;
+      messageOnly("🎬 AI 老师正在为《" + lesson.title + "》绘制 5 幕图解动画（约 60-120 秒）。只需生成一次，以后打开秒放～");
+      window.PodAI.callText(cfg, buildPrompt(subject, lesson)).then(function (raw) {
+        generating = false;
+        vlBtn.disabled = false;
+        const sc = parseScenes(raw);
+        if (sc.length < 3) throw new Error("生成的课件不完整，请点「重新生成」再试一次");
+        scenes = sc;
+        saveVisual(key, sc);
+        logEvent("visual", "生成图解动画课：《" + lesson.title + "》" + sc.length + " 幕");
+        openViewer(subject, lesson);
+      }).catch(function (e) {
+        generating = false;
+        vlBtn.disabled = false;
+        messageOnly("生成失败：" + e.message);
+      });
+    }
+
+    const vlBtn = document.createElement("button");
+    vlBtn.className = "ghost-button vl-btn";
+    vlBtn.type = "button";
+    vlBtn.textContent = "🎬 图解动画课";
+    vlBtn.addEventListener("click", function () {
+      const subject = subjects[currentSubjectKey];
+      const lesson = getLesson();
+      const key = currentSubjectKey + ":" + currentLessonIndex;
+      stopSpeech();
+      stopAnimation();
+      const cached = (loadJSON("visuals", {})[key] || {}).scenes;
+      if (cached && cached.length) {
+        scenes = cached.map(function (s) {
+          return { title: String(s.title || ""), text: String(s.text || ""), svg: window.PodAI.sanitizeSvg(s.svg || "") };
+        });
+        logEvent("visual", "观看图解动画课：《" + lesson.title + "》");
+        openViewer(subject, lesson);
+        return;
+      }
+      generate(subject, lesson, key);
+    });
+    actions.insertBefore(vlBtn, actions.firstChild);
+  })();
+
   /* ---------- 标记已学：可切换 ---------- */
 
   markDone.addEventListener("click", function () {

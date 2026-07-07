@@ -1022,3 +1022,46 @@ body {
 
 /* ===== 老师声音切换按钮 ===== */
 .voice-btn { white-space: nowrap; }
+
+/* ===== 🎬 图解动画课堂 ===== */
+.vl-mask {
+  position: fixed; inset: 0; background: rgba(12, 30, 48, 0.62); display: grid;
+  place-items: center; z-index: 90; padding: 14px; backdrop-filter: blur(3px);
+}
+.vl-mask[hidden] { display: none; }
+.vl-box {
+  width: 100%; max-width: 780px; max-height: 94vh; overflow: auto; background: #fff;
+  border-radius: 16px; padding: 16px 18px 14px; box-shadow: 0 24px 60px rgba(10, 25, 42, 0.35);
+  animation: panelIn 0.4s cubic-bezier(0.25, 1.4, 0.4, 1) both;
+}
+.vl-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.vl-head strong { font-size: 16.5px; color: #14283f; flex: 1; line-height: 1.4; }
+.vl-head #vlSceneNo { font-size: 12.5px; color: #0b7c78; background: #e9f8f7; border-radius: 999px; padding: 4px 11px; white-space: nowrap; font-weight: 700; }
+.vl-close { border: none; background: #f1f5f9; color: #48607a; width: 32px; height: 32px; border-radius: 50%; font-size: 15px; cursor: pointer; flex: none; }
+.vl-close:hover { background: #e2604f; color: #fff; }
+.vl-fig {
+  background: #fff; border: 2px solid #e3ecf4; border-radius: 12px; overflow: hidden;
+  min-height: 120px; display: grid; place-items: center;
+}
+.vl-fig svg { display: block; width: 100%; height: auto; max-height: 56vh; }
+.vl-nofig { padding: 34px 18px; color: #6b7f92; font-size: 14.5px; text-align: center; line-height: 1.8; }
+.vl-body h3 { margin: 12px 2px 4px; font-size: 17px; color: #0b7c78; }
+.vl-body p { margin: 0 2px; font-size: 15px; line-height: 1.9; color: #22405e; }
+.vl-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.vl-controls button {
+  border: 1px solid #d5e2ee; background: #f4f9fd; color: #2a4a68; border-radius: 8px;
+  padding: 9px 13px; font: inherit; font-size: 13.5px; cursor: pointer;
+  transition: transform 0.16s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.vl-controls button:hover:not(:disabled) { transform: translateY(-2px); }
+.vl-controls button:active:not(:disabled) { transform: scale(0.93); }
+.vl-controls button:disabled { opacity: 0.4; cursor: default; }
+.vl-play { background: #0f9f9a !important; border-color: #0f9f9a !important; color: #fff !important; font-weight: 700; }
+.vl-dots { display: inline-flex; gap: 6px; margin: 0 4px; }
+.vl-dots i {
+  width: 11px; height: 11px; border-radius: 50%; background: #d7e4ef; cursor: pointer;
+  transition: transform 0.18s cubic-bezier(0.3, 1.8, 0.5, 1), background 0.18s;
+}
+.vl-dots i:hover { transform: scale(1.3); }
+.vl-dots i.on { background: #0f9f9a; transform: scale(1.35); }
+.vl-btn { white-space: nowrap; }
