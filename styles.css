@@ -847,3 +847,14 @@ button {
 .lesson-sections details { border: 1px solid #e3edf5; border-radius: 7px; background: #f7fbff; margin: 0 0 8px; padding: 9px 12px; }
 .lesson-sections summary { cursor: pointer; font-size: 14px; font-weight: 700; color: #1f5d8f; }
 .lesson-sections p { margin: 8px 0 0; font-size: 13.5px; color: #33506b; line-height: 1.7; }
+
+/* ===== 错题语音讲解 ===== */
+.qe-explain {
+  margin-top: 8px; border: 1px solid #bfe8e3; background: #ffffff; color: #087872;
+  border-radius: 7px; padding: 7px 13px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.qe-explain:hover { background: #e7f7f5; }
+.qe-explain-text {
+  margin: 8px 0 0; padding: 10px 12px; background: #ffffff; border: 1px dashed #bfe8e3;
+  border-radius: 7px; color: #14532d; font-size: 13px; line-height: 1.75;
+}

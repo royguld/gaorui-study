@@ -49,6 +49,41 @@
     });
   }
 
+  /* 纯文本调用（用于口语化讲解，不要求 JSON） */
+  function callModelText(cfg, prompt) {
+    return fetch(cfg.endpoint || ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + cfg.apiKey },
+      body: JSON.stringify({
+        model: cfg.model || "qwen-plus",
+        temperature: 0.6,
+        messages: [
+          { role: "system", content: "你是一位耐心温和的中小学老师。" },
+          { role: "user", content: prompt },
+        ],
+      }),
+    }).then(function (r) {
+      return r.json().then(function (d) {
+        if (!r.ok) throw new Error(friendlyError((d.error && d.error.message) || "接口返回 " + r.status, r.status));
+        return String(d.choices[0].message.content || "").trim();
+      });
+    });
+  }
+
+  function explainQuestion(cfg, r) {
+    var q = r.q;
+    var prompt =
+      "给" + (cfg.grade || "中小学") + "的孩子口头讲解这道做错的" + (q.type === "choice" ? "选择题" : "题目") + "。\n" +
+      "题目：" + q.question + "\n" +
+      (q.type === "choice"
+        ? "选项:" + q.options.join("；") + "\n正确答案：" + q.options[q.answer] + "\n"
+        : "参考答案：" + q.refAnswer + "\n") +
+      "孩子的回答：" + (r.childText || "（未作答）") + "\n" +
+      (q.explain ? "解析提示：" + q.explain + "\n" : "") +
+      "要求：口语化、鼓励的语气，像面对面讲课；先温和指出孩子的答案错在哪里，再一步一步讲清正确思路，最后一句话总结要点。150-250 字。只输出讲解正文，纯文本，不要任何 markdown 符号和标题。";
+    return callModelText(cfg, prompt);
+  }
+
   /* 把供应商的英文报错翻译成家长能看懂的提示 */
   function friendlyError(msg, status) {
     var m = String(msg);
@@ -209,6 +244,58 @@
         ctx.els.result.className = "quiz-result" + (cls ? " " + cls : "");
       }
 
+      /* ---- 错题语音讲解 ---- */
+      var speakingBtn = null;
+      function stopEngineSpeech() {
+        try { if ("speechSynthesis" in window) window.speechSynthesis.cancel(); } catch (e) { /* 忽略 */ }
+        if (speakingBtn) { speakingBtn.textContent = "🔈 再听一遍"; speakingBtn = null; }
+      }
+      function speakText(text, btn) {
+        stopEngineSpeech();
+        if (!("speechSynthesis" in window)) { btn.textContent = "🔈 再听一遍"; return; }
+        var u = new SpeechSynthesisUtterance(text);
+        u.lang = "zh-CN";
+        u.rate = 0.95;
+        u.onend = u.onerror = function () {
+          if (speakingBtn === btn) { btn.textContent = "🔈 再听一遍"; speakingBtn = null; }
+        };
+        speakingBtn = btn;
+        btn.textContent = "⏹ 停止朗读";
+        window.speechSynthesis.speak(u);
+      }
+      function showExplainText(r, btn) {
+        var fb = btn.closest(".qe-feedback");
+        if (fb && !fb.querySelector(".qe-explain-text")) {
+          var p = document.createElement("p");
+          p.className = "qe-explain-text";
+          p.textContent = r.q.explainText;
+          fb.appendChild(p);
+        }
+      }
+      function explainHandler(r, btn) {
+        if (speakingBtn === btn) { stopEngineSpeech(); return; }
+        if (r.q.explainText) {
+          showExplainText(r, btn);
+          speakText(r.q.explainText, btn);
+          return;
+        }
+        if (btn.dataset.busy) return;
+        btn.dataset.busy = "1";
+        btn.textContent = "老师备课中，稍等...";
+        var c = ctx.getContext();
+        explainQuestion(cfg(c), r).then(function (text) {
+          delete btn.dataset.busy;
+          if (!text) throw new Error("讲解为空");
+          r.q.explainText = text;
+          showExplainText(r, btn);
+          ctx.hooks.logEvent("explain", "听讲解：" + r.q.question.slice(0, 40));
+          speakText(text, btn);
+        }).catch(function (e) {
+          delete btn.dataset.busy;
+          btn.textContent = "讲解失败，点击重试";
+        });
+      }
+
       function renderIdle() {
         var c = ctx.getContext();
         var le = lessonEntry(c);
@@ -287,7 +374,7 @@
         ctx.hooks.logEvent("quiz", c.subjectLabel + "《" + c.lesson.title + "》AI小测 " + score + "/" + round.questions.length +
           "（对" + right + " 半对" + partial + " 错" + (round.questions.length - right - partial) + "）");
 
-        // 渲染逐题反馈
+        // 渲染逐题反馈（做错/半对的题带"听老师讲解"按钮）
         var icon = { right: "✔ 正确", partial: "◐ 部分正确", wrong: "✘ 不对" };
         results.forEach(function (r, qi) {
           var div = ctx.els.box.querySelector('.quiz-question[data-q="' + qi + '"]');
@@ -296,10 +383,16 @@
           var fb = '<div class="qe-feedback qe-fb-' + r.verdict + '"><strong>' + icon[r.verdict] + "</strong> " + esc(r.comment || "") +
             (r.verdict !== "right"
               ? "<br />参考答案：" + esc(r.q.type === "choice" ? r.q.options[r.q.answer] : r.q.refAnswer) +
-                (r.q.explain ? "<br />解析：" + esc(r.q.explain) : "")
+                (r.q.explain ? "<br />解析：" + esc(r.q.explain) : "") +
+                '<br /><button class="qe-explain" data-q="' + qi + '" type="button">🔈 听老师讲解</button>'
               : "") + "</div>";
           div.insertAdjacentHTML("beforeend", fb);
           Array.prototype.forEach.call(div.querySelectorAll("input,textarea"), function (el) { el.disabled = true; });
+        });
+        Array.prototype.forEach.call(ctx.els.box.querySelectorAll(".qe-explain"), function (btn) {
+          btn.addEventListener("click", function () {
+            explainHandler(results[Number(btn.dataset.q)], btn);
+          });
         });
 
         round.graded = true;
@@ -314,6 +407,7 @@
       }
 
       function startRound() {
+        stopEngineSpeech();
         var c = ctx.getContext();
         var le = lessonEntry(c);
         var used = quotaUsed(c.subjectLabel);
@@ -398,6 +492,7 @@
         refresh: function () {
           var ai = getAI();
           if (!ai || !ai.apiKey) return false;
+          stopEngineSpeech();
           round = null;
           busy = false;
           renderIdle();
