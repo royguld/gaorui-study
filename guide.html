@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>使用说明书 · 家庭学习舱</title>
+<link rel="icon" href="data:," />
+<style>
+  :root {
+    --teal: #0f9f9a; --teal-d: #0b7c78; --navy: #14283f; --ink: #22405e;
+    --sub: #5d7288; --bg: #f4f8fb; --card: #ffffff; --line: #dfe9f1;
+    --warn: #d88a18; --red: #e2604f; --green: #1d7a4f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif; background: var(--bg); color: var(--ink); line-height: 1.75; }
+
+  /* ===== 顶部导航 ===== */
+  .topnav { position: sticky; top: 0; z-index: 50; background: rgba(20,40,63,.94); backdrop-filter: blur(6px); display: flex; align-items: center; gap: 6px; padding: 10px 16px; overflow-x: auto; }
+  .topnav .logo { color: #fff; font-weight: 800; font-size: 15px; margin-right: 8px; white-space: nowrap; }
+  .topnav a { color: #cfe3f5; text-decoration: none; font-size: 13.5px; padding: 7px 13px; border-radius: 999px; white-space: nowrap; }
+  .topnav a:hover, .topnav a.hot { background: rgba(255,255,255,.14); color: #fff; }
+  .topnav .back { margin-left: auto; border: 1px solid rgba(255,255,255,.3); }
+
+  /* ===== Hero ===== */
+  .hero { position: relative; overflow: hidden; background: linear-gradient(135deg, #10314f, #0d5f5c); color: #fff; text-align: center; padding: 72px 20px 84px; }
+  .hero h1 { font-size: clamp(28px, 5vw, 44px); letter-spacing: 2px; }
+  .hero p.sub { margin-top: 12px; font-size: clamp(14px, 2.4vw, 17px); color: #cfe8e6; }
+  .hero .float { position: absolute; border-radius: 50%; opacity: .14; background: #fff; animation: floaty 7s ease-in-out infinite; }
+  .f1 { width: 130px; height: 130px; left: 6%; top: 18%; animation-delay: 0s; }
+  .f2 { width: 70px; height: 70px; right: 10%; top: 12%; animation-delay: 1.4s; }
+  .f3 { width: 46px; height: 46px; left: 22%; bottom: 12%; animation-delay: 2.6s; }
+  .f4 { width: 95px; height: 95px; right: 20%; bottom: 16%; animation-delay: .8s; }
+  @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-22px); } }
+  .hero .badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+  .hero .badges span { background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 8px 16px; font-size: 13.5px; animation: pop .6s ease both; }
+  .hero .badges span:nth-child(2) { animation-delay: .15s; } .hero .badges span:nth-child(3) { animation-delay: .3s; }
+  .hero .badges span:nth-child(4) { animation-delay: .45s; } .hero .badges span:nth-child(5) { animation-delay: .6s; }
+  @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  /* ===== 布局与卡片 ===== */
+  main { max-width: 980px; margin: 0 auto; padding: 30px 18px 80px; }
+  .chapter { margin-top: 46px; }
+  .chapter > h2 { font-size: 24px; color: var(--navy); display: flex; align-items: center; gap: 10px; }
+  .chapter > h2 .tag { font-size: 12.5px; background: var(--teal); color: #fff; border-radius: 6px; padding: 3px 9px; letter-spacing: 1px; }
+  .chapter > p.lead { color: var(--sub); margin-top: 6px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px 22px; margin-top: 18px; box-shadow: 0 2px 10px rgba(20,40,63,.05); }
+  .step-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .step-num { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--teal); color: #fff; font-weight: 800; display: grid; place-items: center; font-size: 15px; }
+  .step-head h3 { font-size: 17.5px; color: var(--navy); }
+  .card p { margin-top: 6px; }
+  .card .note { margin-top: 10px; background: #fff7e9; border-left: 4px solid var(--warn); border-radius: 6px; padding: 9px 12px; font-size: 13.5px; color: #7a5410; }
+  .card .good { margin-top: 10px; background: #edf8f1; border-left: 4px solid var(--green); border-radius: 6px; padding: 9px 12px; font-size: 13.5px; color: #1d5c3d; }
+  kbd.pill { display: inline-block; background: #eef4fa; border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; font-family: inherit; font-size: 13px; color: var(--navy); font-weight: 700; }
+
+  /* 滚动进场 */
+  .rv { opacity: 0; transform: translateY(26px); transition: opacity .6s ease, transform .6s ease; }
+  .rv.in { opacity: 1; transform: none; }
+
+  /* ===== 演示：授权码输入 ===== */
+  .demo { margin-top: 14px; background: #f2f7fb; border: 1px dashed #c8d9e8; border-radius: 12px; padding: 18px; overflow: hidden; }
+  .demo .demo-label { font-size: 12px; color: var(--sub); letter-spacing: 2px; margin-bottom: 10px; }
+  .pinbox { max-width: 330px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 18px; text-align: center; border: 1px solid var(--line); }
+  .pinbox .lock { font-size: 30px; animation: wiggle 2.6s ease-in-out infinite; display: inline-block; }
+  @keyframes wiggle { 0%,88%,100% { transform: rotate(0); } 92% { transform: rotate(-12deg); } 96% { transform: rotate(10deg); } }
+  .pin-input { margin-top: 10px; border: 2px solid var(--teal); border-radius: 8px; padding: 10px; font-size: 16px; letter-spacing: 2px; color: var(--navy); font-weight: 700; white-space: nowrap; overflow: hidden; }
+  .pin-input .typed { display: inline-block; overflow: hidden; vertical-align: bottom; white-space: nowrap; width: 0; animation: typing 3.2s steps(11) infinite; }
+  @keyframes typing { 0% { width: 0; } 55% { width: 11ch; } 80% { width: 11ch; } 100% { width: 0; } }
+  .pin-input .caret { display: inline-block; width: 2px; height: 18px; background: var(--teal); vertical-align: bottom; animation: blink 1s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ===== 演示：三步流程 ===== */
+  .flow { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: stretch; }
+  .flow .fstep { flex: 1 1 150px; max-width: 220px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px; text-align: center; position: relative; }
+  .flow .fstep .ico { font-size: 30px; }
+  .flow .fstep strong { display: block; margin-top: 6px; color: var(--navy); font-size: 14.5px; }
+  .flow .fstep span { font-size: 12.5px; color: var(--sub); }
+  .flow .arrow { align-self: center; font-size: 22px; color: var(--teal); animation: nudge 1.4s ease-in-out infinite; }
+  @keyframes nudge { 0%,100% { transform: translateX(0); } 50% { transform: translateX(6px); } }
+  .glowstep { animation: glow 3.6s ease-in-out infinite; }
+  .glowstep:nth-child(3) { animation-delay: 1.2s; } .glowstep:nth-child(5) { animation-delay: 2.4s; }
+  @keyframes glow { 0%,30%,100% { box-shadow: none; } 12% { box-shadow: 0 0 0 4px rgba(15,159,154,.25); border-color: var(--teal); } }
+
+  /* ===== 演示：小测循环 ===== */
+  .loopwrap { display: flex; justify-content: center; }
+  .loop svg { width: 100%; max-width: 620px; height: auto; }
+
+  /* ===== 演示：90 题进度 ===== */
+  .quota { max-width: 460px; margin: 0 auto; }
+  .quota .qbar { height: 16px; background: #e3edf5; border-radius: 999px; overflow: hidden; }
+  .quota .qbar i { display: block; height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, var(--teal), #35c4be); animation: fill90 5s ease-in-out infinite; }
+  @keyframes fill90 { 0% { width: 0; } 70% { width: 100%; } 88% { width: 100%; } 100% { width: 0; } }
+  .quota .qnums { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--sub); margin-top: 5px; }
+
+  /* ===== 演示：麦克风 ===== */
+  .micdemo { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; justify-content: center; }
+  .micbtn { position: relative; width: 92px; height: 92px; border-radius: 50%; background: var(--red); color: #fff; display: grid; place-items: center; font-size: 36px; flex: none; animation: press 4s ease-in-out infinite; }
+  @keyframes press { 0%,10%,90%,100% { transform: scale(1); } 20%,70% { transform: scale(.92); } }
+  .micbtn::before, .micbtn::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 3px solid var(--red); animation: sonar 1.6s ease-out infinite; }
+  .micbtn::after { animation-delay: .8s; }
+  @keyframes sonar { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(1.9); opacity: 0; } }
+  .fake-ta { flex: 1 1 240px; max-width: 340px; background: #fff; border: 1.5px solid var(--teal); border-radius: 10px; padding: 12px 14px; min-height: 68px; font-size: 15px; color: var(--navy); }
+  .fake-ta .said { color: var(--sub); font-size: 12.5px; display: block; margin-bottom: 4px; }
+  .fake-ta .out { display: inline-block; overflow: hidden; white-space: nowrap; vertical-align: bottom; width: 0; animation: micType 4s steps(14) infinite; font-weight: 700; }
+  @keyframes micType { 0%,30% { width: 0; } 75% { width: 14ch; } 92% { width: 14ch; } 100% { width: 0; } }
+
+  /* ===== 演示：画图 ===== */
+  .drawdemo { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; align-items: center; }
+  .padframe { background: #fff; border: 2px dashed #c9d9e8; border-radius: 12px; padding: 8px; }
+  .padframe svg { display: block; width: 280px; max-width: 72vw; height: auto; }
+  .draw-line { stroke-dasharray: 420; stroke-dashoffset: 420; animation: drawing 5s ease-in-out infinite; }
+  @keyframes drawing { 0%,12% { stroke-dashoffset: 420; } 55% { stroke-dashoffset: 0; } 88% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 420; } }
+  .ai-say { background: #edf8f1; border: 1px solid #bfe4cd; color: #1d5c3d; border-radius: 10px; padding: 10px 14px; font-size: 14px; max-width: 260px; animation: fadeCycle 5s ease-in-out infinite; }
+  @keyframes fadeCycle { 0%,45% { opacity: 0; transform: translateY(8px); } 60%,88% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+
+  /* ===== 演示：图解讲解 ===== */
+  .teachdemo { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: center; }
+  .speaker { font-size: 42px; animation: speakPulse 1.5s ease-in-out infinite; }
+  @keyframes speakPulse { 0%,100% { transform: scale(1); opacity: .85; } 50% { transform: scale(1.14); opacity: 1; } }
+
+  /* ===== 演示：由易到难楼梯 ===== */
+  .stairs { display: flex; justify-content: center; }
+  .stairs svg { width: 100%; max-width: 540px; height: auto; }
+
+  /* ===== 工具按钮示意 ===== */
+  .toolrow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .toolrow span { border: 1px solid #d5e2ee; background: #f4f9fd; color: #2a4a68; border-radius: 8px; padding: 8px 13px; font-size: 13.5px; }
+
+  /* ===== FAQ ===== */
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin-top: 12px; }
+  details summary { cursor: pointer; font-weight: 700; color: var(--navy); font-size: 15px; list-style: none; position: relative; padding-right: 26px; }
+  details summary::after { content: "＋"; position: absolute; right: 2px; top: 0; color: var(--teal); font-weight: 800; transition: transform .25s; }
+  details[open] summary::after { transform: rotate(45deg); }
+  details p { margin-top: 8px; color: var(--ink); font-size: 14px; }
+
+  /* 章节分隔角色横幅 */
+  .rolebar { margin-top: 54px; border-radius: 16px; padding: 26px 24px; color: #fff; display: flex; align-items: center; gap: 16px; }
+  .rolebar.parent { background: linear-gradient(120deg, #1d4b73, #0f9f9a); }
+  .rolebar.kid { background: linear-gradient(120deg, #b96a12, #e2a03f); }
+  .rolebar .big { font-size: 40px; animation: floaty 5s ease-in-out infinite; }
+  .rolebar h2 { font-size: 22px; }
+  .rolebar p { font-size: 13.5px; opacity: .92; }
+
+  footer { text-align: center; color: var(--sub); font-size: 13px; padding: 26px 16px 46px; }
+  footer a { color: var(--teal); }
+  @media (max-width: 560px) { .card { padding: 16px 14px; } }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <span class="logo">📖 使用说明书</span>
+  <a href="#start">快速开始</a>
+  <a href="#parent">家长篇</a>
+  <a href="#kid">孩子篇</a>
+  <a href="#faq">常见问题</a>
+  <a class="back" href="./home.html">⇦ 回到起始页</a>
+</nav>
+
+<header class="hero">
+  <div class="float f1"></div><div class="float f2"></div><div class="float f3"></div><div class="float f4"></div>
+  <h1>家庭学习舱 · 使用说明书</h1>
+  <p class="sub">AI 每天陪孩子：学课程 → 出新题 → 判分讲解 → 由易到难，家长随时看报告</p>
+  <div class="badges">
+    <span>🤖 AI 每轮出全新题</span>
+    <span>🎤 按住说话作答</span>
+    <span>✏️ 画图 / 📷 拍照作答</span>
+    <span>🔈 错题图解动画讲解</span>
+    <span>📊 家长报告</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- ================= 快速开始 ================= -->
+  <section id="start" class="chapter rv">
+    <h2><span class="tag">START</span>三分钟快速开始</h2>
+    <p class="lead">全家只需做一次的准备工作，之后孩子每天自己打开网页就能学。</p>
+    <div class="card">
+      <div class="demo">
+        <p class="demo-label">整体流程</p>
+        <div class="flow">
+          <div class="fstep glowstep"><div class="ico">🔑</div><strong>1. 输入授权码</strong><span>打开起始页，输入家庭授权码</span></div>
+          <div class="arrow">➜</div>
+          <div class="fstep glowstep"><div class="ico">🤖</div><strong>2. 设置 AI Key</strong><span>选供应商、粘贴 Key，一次搞定</span></div>
+          <div class="arrow">➜</div>
+          <div class="fstep glowstep"><div class="ico">🧒</div><strong>3. 孩子进舱学习</strong><span>点孩子卡片，开始每日学习</span></div>
+        </div>
+      </div>
+      <p style="margin-top:14px">网址：<kbd class="pill">royguld.github.io/gaorui-study</kbd>　建议家长在孩子的设备上完成第 1、2 步，之后孩子每天直接点自己的卡片即可。</p>
+      <p class="note">⚠️ 孩子的课程和学习进度保存在<strong>本设备浏览器</strong>里，请让孩子固定用同一台设备、同一个浏览器学习（推荐 Chrome 或 Edge，语音作答效果最好）。</p>
+    </div>
+  </section>
+
+  <!-- ================= 家长篇 ================= -->
+  <div class="rolebar parent rv" id="parent">
+    <span class="big">👨‍👩‍👧</span>
+    <div><h2>家长篇</h2><p>授权进入、配置 AI、添加孩子、查看报告、备份数据 —— 家长要做的都在这里。</p></div>
+  </div>
+
+  <section class="chapter rv">
+    <div class="card">
+      <div class="step-head"><span class="step-num">1</span><h3>输入授权码，进入起始页</h3></div>
+      <p>打开网站会先看到授权门。输入家里约定的授权码，点「进入」。授权 30 天内有效，之后同一设备不用重复输入。</p>
+      <div class="demo">
+        <p class="demo-label">演示 · 授权门</p>
+        <div class="pinbox">
+          <span class="lock">🔒</span>
+          <div class="pin-input"><span class="typed">•••••••••••</span><span class="caret"></span></div>
+          <p style="margin-top:8px;font-size:12.5px;color:var(--sub)">输入家庭授权码 → 进入</p>
+        </div>
+      </div>
+      <p class="note">授权码请只告诉自家人和信任的亲友，不要发到公开群里。点「退出授权」可随时锁上。</p>
+    </div>
+
+    <div class="card rv">
+      <div class="step-head"><span class="step-num">2</span><h3>设置 AI Key（智能功能的钥匙）</h3></div>
+      <p>AI 出题、批改、语音整理、识图、图解讲解都需要一把大模型的 API Key。在起始页点 <kbd class="pill">AI Key 设置</kbd>：</p>
+      <div class="demo">
+        <p class="demo-label">演示 · 三步配置</p>
+        <div class="flow">
+          <div class="fstep glowstep"><div class="ico">🏬</div><strong>选供应商</strong><span>推荐「通义千问」，新用户有免费额度</span></div>
+          <div class="arrow">➜</div>
+          <div class="fstep glowstep"><div class="ico">🔐</div><strong>粘贴 Key</strong><span>在供应商官网申请后复制过来</span></div>
+          <div class="arrow">➜</div>
+          <div class="fstep glowstep"><div class="ico">✅</div><strong>保存</strong><span>自动应用到所有孩子</span></div>
+        </div>
+      </div>
+      <p style="margin-top:12px">通义 Key 申请：打开阿里云「百炼 / DashScope」控制台 → API-KEY 管理 → 创建，复制以 <kbd class="pill">sk-</kbd> 开头的字符串。也支持 DeepSeek、Kimi、豆包或自定义接口。</p>
+      <p class="good">✅ 已验证通义千问可以在浏览器里直接调用；其他供应商如果出题时报「无法连接」，换回通义即可。画图识别用的是通义的视觉模型，同一把 Key 通用。</p>
+    </div>
+
+    <div class="card rv">
+      <div class="step-head"><span class="step-num">3</span><h3>添加孩子，生成专属学习舱</h3></div>
+      <p>点 <kbd class="pill">+ 添加孩子</kbd>，按向导填写：姓名、年龄年级、学习状态、学科长短处、成绩偏差说明；还可以：</p>
+      <div class="toolrow">
+        <span>📷 上传成绩单照片（AI 自动读取）</span>
+        <span>📦 导入资料包：PDF / Word / Excel / PPT / 图片 / 压缩包，最大 100MB</span>
+        <span>📚 勾选内置人教版教材包（小学到高中）</span>
+      </div>
+      <p style="margin-top:10px">点「生成」后，AI 会根据孩子的情况定制课程，自动出现在起始页卡片里。每个孩子的课程、进度、错题本完全独立。</p>
+      <p class="note">高睿的学习舱已自动转为标准档案，原有学习记录全部保留，卡片不提供删除按钮，防止误删。</p>
+    </div>
+
+    <div class="card rv">
+      <div class="step-head"><span class="step-num">4</span><h3>每天看「家长报告」</h3></div>
+      <p>起始页点 <kbd class="pill">家长报告</kbd>（或孩子卡片上的「报告」），可以切换孩子和 <strong>今日 / 近 7 天 / 近 30 天</strong>：</p>
+      <p>· 学习时长（真实操作才计时，挂机不算）<br />
+         · 每科做题量（x/90）与小测正确率<br />
+         · 考点掌握情况：哪些已「连对两次」过关、哪些还欠着、各错了几次<br />
+         · 学习时间线：几点学了什么课、听了几次讲解、添加过什么资料<br />
+         · 一键「复制今日小结」，方便发到家庭群。</p>
+    </div>
+
+    <div class="card rv">
+      <div class="step-head"><span class="step-num">5</span><h3>备份与换设备</h3></div>
+      <p>换设备、重装浏览器、清理过浏览器数据之前，务必先备份：</p>
+      <div class="demo">
+        <p class="demo-label">演示 · 数据搬家</p>
+        <div class="flow">
+          <div class="fstep glowstep"><div class="ico">📤</div><strong>旧设备</strong><span>起始页 → 导出备份，得到一个文件</span></div>
+          <div class="arrow">➜</div>
+          <div class="fstep glowstep"><div class="ico">✈️</div><strong>传输</strong><span>微信 / 邮件把文件发到新设备</span></div>
+          <div class="arrow">➜</div>
+          <div class="fstep glowstep"><div class="ico">📥</div><strong>新设备</strong><span>起始页 → 导入备份，完整恢复</span></div>
+        </div>
+      </div>
+      <p class="good">建议每周导出一次备份，文件里包含所有孩子的课程、进度、错题和掌握度。</p>
+    </div>
+  </section>
+
+  <!-- ================= 孩子篇 ================= -->
+  <div class="rolebar kid rv" id="kid">
+    <span class="big">🧒</span>
+    <div><h2>孩子篇</h2><p>每天怎么学、怎么答题、错了怎么办 —— 看完这一段你就是学习舱高手！</p></div>
+  </div>
+
+  <section class="chapter rv">
+    <div class="card">
+      <div class="step-head"><span class="step-num">1</span><h3>每天先找「今日建议」</h3></div>
+      <p>点自己的卡片进入学习舱。左边是科目，中间的「科目闯关地图」里，第一个还没学完的知识点会挂一个
+        <span style="background:#fff4df;color:#d88a18;border-radius:6px;padding:3px 8px;font-size:12.5px;font-weight:700;display:inline-block;animation:pop 1.2s ease infinite alternate">今日建议</span>
+        小牌子 —— 课程是按<strong>由易到难</strong>排好的，跟着牌子学就对了。</p>
+      <p>每个知识点里有：分节课文（够学 30 分钟）、分步讲解动画、朗读、生活例子、易错提醒。学完点「标记已学」，牌子自动移到下一课。</p>
+    </div>
+
+    <div class="card rv">
+      <div class="step-head"><span class="step-num">2</span><h3>AI 小测是这样转的</h3></div>
+      <p>点「开始新一轮小测」，AI 会现场给你出 <strong>15 道全新题目</strong>：选择题 + 简答题 + 思考题。规则很简单：</p>
+      <div class="demo">
+        <p class="demo-label">演示 · 掌握循环</p>
+        <div class="loopwrap">
+          <svg viewBox="0 0 620 210" xmlns="http://www.w3.org/2000/svg" aria-label="小测循环">
+            <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0f9f9a"/></marker></defs>
+            <rect x="10" y="20" width="130" height="60" rx="12" fill="#e9f8f7" stroke="#0f9f9a"/>
+            <text x="75" y="45" text-anchor="middle" font-size="14" fill="#0b7c78" font-weight="700">AI 出新题</text>
+            <text x="75" y="66" text-anchor="middle" font-size="11" fill="#5d7288">每轮 15 道</text>
+            <rect x="245" y="20" width="130" height="60" rx="12" fill="#fff" stroke="#c9d9e8"/>
+            <text x="310" y="45" text-anchor="middle" font-size="14" fill="#22405e" font-weight="700">你来作答</text>
+            <text x="310" y="66" text-anchor="middle" font-size="11" fill="#5d7288">打字/说话/画图</text>
+            <rect x="480" y="20" width="130" height="60" rx="12" fill="#fff" stroke="#c9d9e8"/>
+            <text x="545" y="45" text-anchor="middle" font-size="14" fill="#22405e" font-weight="700">立刻判分</text>
+            <text x="545" y="66" text-anchor="middle" font-size="11" fill="#5d7288">对 ✔ 半对 ◐ 错 ✘</text>
+            <line x1="140" y1="50" x2="240" y2="50" stroke="#0f9f9a" stroke-width="2.5" marker-end="url(#ar)"/>
+            <line x1="375" y1="50" x2="475" y2="50" stroke="#0f9f9a" stroke-width="2.5" marker-end="url(#ar)"/>
+            <rect x="130" y="135" width="170" height="56" rx="12" fill="#ffefec" stroke="#e2604f"/>
+            <text x="215" y="158" text-anchor="middle" font-size="13.5" fill="#b13c2e" font-weight="700">做错的考点</text>
+            <text x="215" y="177" text-anchor="middle" font-size="11" fill="#b13c2e">下一轮换新情境再考</text>
+            <rect x="360" y="135" width="170" height="56" rx="12" fill="#edf8f1" stroke="#1d7a4f"/>
+            <text x="445" y="158" text-anchor="middle" font-size="13.5" fill="#1d5c3d" font-weight="700">连对两次 = 掌握</text>
+            <text x="445" y="177" text-anchor="middle" font-size="11" fill="#1d5c3d">这个考点不再出题 🎉</text>
+            <path d="M520 82 Q500 120 460 135" fill="none" stroke="#1d7a4f" stroke-width="2" marker-end="url(#ar)"/>
+            <path d="M500 95 Q380 130 302 140" fill="none" stroke="#e2604f" stroke-width="2" marker-end="url(#ar)"/>
+            <path d="M130 160 Q40 140 55 82" fill="none" stroke="#e2604f" stroke-width="2" marker-end="url(#ar)"/>
+            <circle r="5" fill="#0f9f9a">
+              <animateMotion dur="3s" repeatCount="indefinite" path="M140 50 L240 50 M375 50 L475 50"/>
+            </circle>
+          </svg>
+        </div>
+      </div>
+      <div class="demo" style="margin-top:12px">
+        <p class="demo-label">演示 · 每天每科的题量</p>
+        <div class="quota">
+          <div class="qbar"><i></i></div>
+          <div class="qnums"><span>0 题</span><span>做满 90 题，今天这科就毕业啦</span><span>90 题</span></div>
+        </div>
+      </div>
+      <p style="margin-top:10px">每科每天最多 <strong>90 道题</strong>，做满就提示「今天课程结束」；没掌握的考点自动留到明天继续。第二天题量重新计算。</p>
+    </div>
+
+    <div class="card rv">
+      <div class="step-head"><span class="step-num">3</span><h3>🎤 不想打字？按住说话</h3></div>
+      <p>简答题和思考题下面有 <kbd class="pill">🎤 按住说话</kbd> 按钮：<strong>按住不放</strong>，对着设备把答案说出来，<strong>说完松开</strong>。AI 会自动把你的话整理成书面答案填进答题框 —— 同音字帮你纠正，口头禅帮你去掉，意思完全是你自己的。</p>
+      <div class="demo">
+        <p class="demo-label">演示 · 说话变答案</p>
+        <div class="micdemo">
+          <div class="micbtn">🎤</div>
+          <div class="fake-ta">
+            <span class="said">你说：“根号十二等于二倍根号三”</span>
+            <span class="out">AI 填入：√12 = 2√3</span>
+          </div>
+        </div>
+      </div>
+      <p class="note">第一次使用浏览器会弹出「允许使用麦克风？」，一定要点<strong>允许</strong>。填进去的答案还可以自己再改，也可以继续按住补充。</p>
+    </div>
+
+    <div class="card rv">
+      <div class="step-head"><span class="step-num">4</span><h3>✏️ 要画图的题，直接画 或 📷 拍照</h3></div>
+      <p>遇到「画出函数图像」「作图说明」这类题，点 <kbd class="pill">✏️ 画图作答</kbd> 打开白板：手指或鼠标都能画，有细笔、粗笔、橡皮和清空。画好点「✔ 用这张图作答」。</p>
+      <p>更喜欢在纸上画？画完点 <kbd class="pill">📷 拍照上传</kbd>，拍下来传上去一样算数。</p>
+      <div class="demo">
+        <p class="demo-label">演示 · 画一条 y = x，AI 帮你看</p>
+        <div class="drawdemo">
+          <div class="padframe">
+            <svg viewBox="0 0 300 210" xmlns="http://www.w3.org/2000/svg">
+              <line x1="30" y1="180" x2="280" y2="180" stroke="#9db4c8" stroke-width="2"/>
+              <line x1="40" y1="195" x2="40" y2="15" stroke="#9db4c8" stroke-width="2"/>
+              <text x="272" y="196" font-size="11" fill="#5d7288">x</text>
+              <text x="24" y="24" font-size="11" fill="#5d7288">y</text>
+              <path class="draw-line" d="M45 175 L265 30" stroke="#e2604f" stroke-width="4" fill="none" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="ai-say">🤖 AI 看到：过原点、往右上方的一条直线 —— 画得对，判 ✔！</div>
+        </div>
+      </div>
+      <p>提交后 AI 的视觉模型会「看懂」你画的内容并判分，反馈里会写出它看到了什么，公不公平一目了然。</p>
+    </div>
+
+    <div class="card rv">
+      <div class="step-head"><span class="step-num">5</span><h3>🔈 做错了？听老师讲，还带动画图</h3></div>
+      <p>做错或半对的题目下面有 <kbd class="pill">🔈 听老师讲解</kbd>。点一下，AI 老师会用鼓励的语气朗读讲解：先说你错在哪，再一步步讲正确思路。</p>
+      <p>如果题目涉及几何、函数图像、示意图，讲解还会<strong>自动配一张图例</strong>，关键的线条和点会动起来，一边听一边看着图理解。</p>
+      <div class="demo">
+        <p class="demo-label">演示 · 图解讲解（动画）</p>
+        <div class="teachdemo">
+          <span class="speaker">🔈</span>
+          <div class="padframe">
+            <svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+              <line x1="20" y1="170" x2="285" y2="170" stroke="#9db4c8" stroke-width="2"/>
+              <line x1="35" y1="190" x2="35" y2="10" stroke="#9db4c8" stroke-width="2"/>
+              <line x1="40" y1="165" x2="270" y2="35" stroke="#0f9f9a" stroke-width="3.5" stroke-linecap="round"/>
+              <text x="200" y="28" font-size="12" fill="#0b7c78" font-weight="700">y = kx + b</text>
+              <circle r="7" fill="#e2604f">
+                <animateMotion dur="2.6s" repeatCount="indefinite" path="M40 165 L270 35"/>
+              </circle>
+              <text x="48" y="188" font-size="11" fill="#5d7288">红点沿直线移动：x 变大，y 跟着变大</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <p class="good">听不清可以点「🔈 再听一遍」；讲解文字也会显示在题目下面，方便对照。</p>
+    </div>
+
+    <div class="card rv">
+      <div class="step-head"><span class="step-num">6</span><h3>＋ 想学新的？自己加学习资料</h3></div>
+      <p>左边栏点 <kbd class="pill">＋ 添加学习资料 · 自动生成课程</kbd>，把想学的资料粘贴进去（课本目录、讲义、单词表、题目都行），然后选择：</p>
+      <p>· <strong>生成一个新科目</strong>（给它起个名字，比如「奥数思维」）<br />
+         · <strong>补充到已有科目</strong>（接在原有课程后面，不重复、难度衔接）</p>
+      <div class="demo">
+        <p class="demo-label">演示 · AI 按你的水平排出「由易到难」的台阶</p>
+        <div class="stairs">
+          <svg viewBox="0 0 540 220" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20"  y="170" width="95" height="40" rx="8" fill="#e9f8f7" stroke="#0f9f9a"/>
+            <rect x="125" y="135" width="95" height="75" rx="8" fill="#d9f2f0" stroke="#0f9f9a"/>
+            <rect x="230" y="100" width="95" height="110" rx="8" fill="#c3ebe8" stroke="#0f9f9a"/>
+            <rect x="335" y="65"  width="95" height="145" rx="8" fill="#a9e2de" stroke="#0f9f9a"/>
+            <rect x="440" y="30"  width="80" height="180" rx="8" fill="#8cd8d3" stroke="#0f9f9a"/>
+            <text x="67"  y="195" text-anchor="middle" font-size="12" fill="#0b7c78" font-weight="700">第1阶·入门</text>
+            <text x="172" y="162" text-anchor="middle" font-size="12" fill="#0b7c78" font-weight="700">第2阶</text>
+            <text x="277" y="127" text-anchor="middle" font-size="12" fill="#0b7c78" font-weight="700">第3阶</text>
+            <text x="382" y="92"  text-anchor="middle" font-size="12" fill="#0b7c78" font-weight="700">第4阶</text>
+            <text x="480" y="57"  text-anchor="middle" font-size="12" fill="#0b7c78" font-weight="700">第5阶·挑战</text>
+            <text x="30" y="20" font-size="12" fill="#5d7288">🤖 最近正确率低 → 从最基础起步；正确率高 → 适当加深</text>
+            <text font-size="20">🧗
+              <animateMotion dur="6s" repeatCount="indefinite" path="M55 160 L160 125 L265 90 L370 55 L468 20"/>
+            </text>
+          </svg>
+        </div>
+      </div>
+      <p>AI 会看你最近小测的正确率来决定起点，把资料拆成 4-8 课，<strong>严格由易到难</strong>排好 —— 每天跟着「今日建议」一阶一阶往上爬。</p>
+    </div>
+  </section>
+
+  <!-- ================= FAQ ================= -->
+  <section id="faq" class="chapter rv">
+    <h2><span class="tag">FAQ</span>常见问题</h2>
+    <details>
+      <summary>点「开始小测」提示需要 API Key？</summary>
+      <p>说明还没配置 AI Key。请家长在起始页点「AI Key 设置」，选择供应商并粘贴 Key。没有 Key 时小测会退回固定题库模式，学课程不受影响。</p>
+    </details>
+    <details>
+      <summary>提示「AI 账号余额不足」或「Key 不正确」？</summary>
+      <p>余额不足：到供应商控制台充值，或换一个有额度的供应商（通义新用户有免费额度）。Key 不正确：重新到控制台复制一次，注意不要带空格。改完在「AI Key 设置」里重新粘贴保存即可。</p>
+    </details>
+    <details>
+      <summary>麦克风按钮不见了 / 按了没反应？</summary>
+      <p>①用 Chrome 或 Edge 打开（部分浏览器不支持语音识别，按钮会自动隐藏）。②浏览器弹出的「允许使用麦克风」要点允许；如果之前点了拒绝，点地址栏左侧的锁形图标重新开启。③要「按住」说话，说完再松开。</p>
+    </details>
+    <details>
+      <summary>画的图 AI 判错了怎么办？</summary>
+      <p>反馈里会写出「AI 看到：……」。如果它看错了，多半是画得太小或太浅——用粗笔画大一点、关键数字和标注写清楚，或在答题框里补一句文字说明再提交。也可以点「听老师讲解」看正确画法。</p>
+    </details>
+    <details>
+      <summary>今天做满 90 题了还想做？</summary>
+      <p>每科每天上限 90 题是刻意设计的，防止刷题疲劳。可以换一科继续，或者学新课文；没掌握的考点明天会自动继续出题。</p>
+    </details>
+    <details>
+      <summary>换了电脑 / 平板，孩子的进度没了？</summary>
+      <p>进度保存在原设备的浏览器里。回到旧设备「导出备份」，把文件传到新设备「导入备份」即可完整恢复。日常请固定一台设备学习，并定期备份。</p>
+    </details>
+    <details>
+      <summary>其他供应商（Kimi / DeepSeek / 豆包）连不上？</summary>
+      <p>部分供应商不允许网页直接调用（浏览器跨域限制）。已验证通义千问可以稳定直连，遇到「无法连接」就换回通义。画图识别固定走通义视觉模型，需要通义 Key。</p>
+    </details>
+    <details>
+      <summary>课程内容或题目有错误？</summary>
+      <p>AI 生成的内容偶尔会有瑕疵。题目有误可以直接「再来一轮」换新题；课文有误请以学校教材为准，家长也可以在「添加学习资料」里导入学校的真实资料，AI 会优先按真实资料出课。</p>
+    </details>
+  </section>
+
+  <footer>
+    家庭学习舱 · 学一点，测一下，明早复核　|　<a href="./home.html">进入起始页</a>　|　<a href="./report.html">家长报告</a>
+  </footer>
+</main>
+
+<script>
+  /* 滚动进场动画 */
+  (function () {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
+    }, { threshold: 0.12 });
+    document.querySelectorAll(".rv").forEach(function (el) { io.observe(el); });
+    /* 顶部导航高亮 */
+    var links = document.querySelectorAll(".topnav a[href^='#']");
+    var secs = ["start", "parent", "kid", "faq"].map(function (id) { return document.getElementById(id); });
+    window.addEventListener("scroll", function () {
+      var y = window.scrollY + 120, cur = "start";
+      secs.forEach(function (s) { if (s && s.offsetTop <= y) cur = s.id; });
+      links.forEach(function (a) { a.classList.toggle("hot", a.getAttribute("href") === "#" + cur); });
+    }, { passive: true });
+  })();
+</script>
+</body>
+</html>
