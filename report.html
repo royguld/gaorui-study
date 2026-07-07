@@ -151,8 +151,13 @@
         }
 
         /* ---------- 孩子列表 ---------- */
-        var children = [{ id: "__gaorui__", name: "高睿", prefix: null }];
-        loadJSON("family:children", []).forEach(function (c) {
+        var children = [];
+        var famKids = loadJSON("family:children", []);
+        // 高睿迁移为标准档案后走统一逻辑；未迁移的旧设备保留内置入口
+        if (!famKids.some(function (c) { return c.podId === "grx"; })) {
+          children.push({ id: "__gaorui__", name: "高睿", prefix: null });
+        }
+        famKids.forEach(function (c) {
           children.push({ id: c.podId, name: c.student.name, prefix: c.podId + ":" });
         });
         function keyOf(child, k) {

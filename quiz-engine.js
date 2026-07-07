@@ -70,18 +70,92 @@
     });
   }
 
+  /* 多模态调用：识别孩子画的图 / 拍的照片（默认走通义 qwen-vl-plus） */
+  function visionModelFor(cfg) {
+    var ep = cfg.endpoint || ENDPOINT;
+    if (/dashscope/i.test(ep)) return "qwen-vl-plus";
+    return cfg.model || "qwen-plus";
+  }
+  function callVision(cfg, prompt, dataUrl) {
+    return fetch(cfg.endpoint || ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + cfg.apiKey },
+      body: JSON.stringify({
+        model: visionModelFor(cfg),
+        temperature: 0.2,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: dataUrl } },
+          ],
+        }],
+      }),
+    }).then(function (r) {
+      return r.json().then(function (d) {
+        if (!r.ok) throw new Error(friendlyError((d.error && d.error.message) || "接口返回 " + r.status, r.status));
+        return String(d.choices[0].message.content || "").trim();
+      });
+    });
+  }
+
+  /* 批改一道图片作答的题（识别 + 判分） */
+  function gradeImage(cfg, item) {
+    var prompt =
+      "孩子用手绘图或拍照的方式回答了下面这道题。\n题目：" + item.question + "\n参考答案：" + item.refAnswer +
+      (item.childAnswer ? "\n孩子的文字补充：" + item.childAnswer : "") +
+      '\n请先识别图片中的内容（文字、算式、图形、函数图像等），再宽容地判断作答核心意思是否正确。' +
+      '只返回 JSON：{"desc":"图中画/写了什么（30字内）","verdict":"right|partial|wrong","comment":"一句话点评"}';
+    return callVision(cfg, prompt, item.img).then(function (t) {
+      var j = extractJson(t);
+      return {
+        verdict: /^(right|partial|wrong)$/.test(j.verdict) ? j.verdict : "wrong",
+        comment: String(j.comment || ""),
+        desc: String(j.desc || ""),
+      };
+    });
+  }
+
+  /* SVG 图例净化：只允许安全的静态/动画图形，拦掉脚本与外链 */
+  function sanitizeSvg(s) {
+    s = String(s || "").trim();
+    if (!/^<svg[\s>]/i.test(s) || !/<\/svg>\s*$/i.test(s)) return "";
+    if (s.length > 20000) return "";
+    if (/<\s*(script|foreignObject|iframe|object|embed|image|use|video|audio)\b/i.test(s)) return "";
+    if (/\son\w+\s*=/i.test(s)) return "";
+    if (/javascript:/i.test(s)) return "";
+    if (/(xlink:)?href\s*=\s*["'](?!#)/i.test(s)) return ""; // 只允许 #内部引用
+    return s;
+  }
+
+  /* 判断题目是否明显涉及画图/图像 */
+  function needsFigure(q, childText) {
+    var t = (q.question || "") + (q.refAnswer || "") + (q.explain || "") + (childText || "");
+    return /画|作图|图像|图形|几何|坐标|函数图|示意图|三角形|抛物线|直线|曲线|折线|扇形|图表/.test(t);
+  }
+
   function explainQuestion(cfg, r) {
     var q = r.q;
+    var wantFig = needsFigure(q, r.childText) || r.hasImg;
     var prompt =
       "给" + (cfg.grade || "中小学") + "的孩子口头讲解这道做错的" + (q.type === "choice" ? "选择题" : "题目") + "。\n" +
       "题目：" + q.question + "\n" +
       (q.type === "choice"
         ? "选项:" + q.options.join("；") + "\n正确答案：" + q.options[q.answer] + "\n"
         : "参考答案：" + q.refAnswer + "\n") +
-      "孩子的回答：" + (r.childText || "（未作答）") + "\n" +
+      "孩子的回答：" + (r.childText || "（未作答)") + "\n" +
       (q.explain ? "解析提示：" + q.explain + "\n" : "") +
-      "要求：口语化、鼓励的语气，像面对面讲课；先温和指出孩子的答案错在哪里，再一步一步讲清正确思路，最后一句话总结要点。150-250 字。只输出讲解正文，纯文本，不要任何 markdown 符号和标题。";
-    return callModelText(cfg, prompt);
+      "要求：口语化、鼓励的语气，像面对面讲课；先温和指出孩子的答案错在哪里，再一步一步讲清正确思路，最后一句话总结要点。150-250 字。讲解正文是纯文本，不要任何 markdown 符号和标题。\n" +
+      (wantFig
+        ? "这道题涉及图形，必须在讲解正文之后另起一行，输出一个完整的 <svg>...</svg> 图例来配合讲解：viewBox=\"0 0 600 400\"，白底，只用基本图形（线、圆、矩形、路径、text 中文标注），关键元素用醒目颜色；如果分步演示更清楚，用 <animate> 或 <animateTransform> 让关键线条或点动起来（时长 2-4 秒、repeatCount=\"indefinite\"）。不要输出 script。"
+        : "如果画一张图能明显帮助理解（几何、函数图像、示意图等），就在正文之后另起一行输出一个完整的 <svg>...</svg> 图例（viewBox=\"0 0 600 400\"，中文标注，可用 <animate> 做简单动画）；否则不要输出任何 SVG。");
+    return callModelText(cfg, prompt).then(function (t) {
+      var svg = "";
+      var m = t.match(/<svg[\s\S]*<\/svg>/i);
+      if (m) { svg = sanitizeSvg(m[0]); t = t.replace(m[0], ""); }
+      var text = t.replace(/```[a-z]*|```/gi, "").trim();
+      return { text: text, svg: svg };
+    });
   }
 
   /* 把供应商的英文报错翻译成家长能看懂的提示 */
@@ -192,6 +266,113 @@
     });
   }
 
+  /* ---------- 画板：全页面共享一个弹层，完成后回调图片 dataURL ---------- */
+
+  var padEls = null;
+  function ensurePad() {
+    if (padEls) return padEls;
+    var mask = document.createElement("div");
+    mask.className = "qe-pad-mask";
+    mask.hidden = true;
+    mask.innerHTML =
+      '<div class="qe-pad">' +
+      '<div class="qe-pad-head"><strong>画图作答</strong><span>用手指或鼠标在白板上画，画完点“用这张图作答”</span></div>' +
+      '<canvas class="qe-pad-canvas" width="800" height="520"></canvas>' +
+      '<div class="qe-pad-tools">' +
+      '<button type="button" data-pen="3" class="on">✏️ 细笔</button>' +
+      '<button type="button" data-pen="7">🖊️ 粗笔</button>' +
+      '<button type="button" data-pen="24" data-eraser="1">🧽 橡皮</button>' +
+      '<button type="button" data-act="clear">🗑️ 清空</button>' +
+      '<button type="button" data-act="ok" class="qe-pad-ok">✔ 用这张图作答</button>' +
+      '<button type="button" data-act="cancel">取消</button>' +
+      "</div></div>";
+    document.body.appendChild(mask);
+    var canvas = mask.querySelector("canvas");
+    var g = canvas.getContext("2d");
+    var pen = { w: 3, eraser: false };
+    var drawing = false, hasInk = false;
+    function reset() {
+      g.fillStyle = "#ffffff";
+      g.fillRect(0, 0, canvas.width, canvas.height);
+      hasInk = false;
+    }
+    function pos(e) {
+      var r = canvas.getBoundingClientRect();
+      return { x: (e.clientX - r.left) * (canvas.width / r.width), y: (e.clientY - r.top) * (canvas.height / r.height) };
+    }
+    canvas.addEventListener("pointerdown", function (e) {
+      e.preventDefault();
+      drawing = true;
+      hasInk = true;
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
+      var p = pos(e);
+      g.beginPath();
+      g.moveTo(p.x, p.y);
+    });
+    canvas.addEventListener("pointermove", function (e) {
+      if (!drawing) return;
+      e.preventDefault();
+      var p = pos(e);
+      g.lineCap = "round";
+      g.lineJoin = "round";
+      g.lineWidth = pen.w;
+      g.strokeStyle = pen.eraser ? "#ffffff" : "#17324d";
+      g.lineTo(p.x, p.y);
+      g.stroke();
+    });
+    ["pointerup", "pointercancel"].forEach(function (ev) {
+      canvas.addEventListener(ev, function () { drawing = false; });
+    });
+    mask.querySelectorAll("[data-pen]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        pen.w = Number(b.dataset.pen);
+        pen.eraser = !!b.dataset.eraser;
+        mask.querySelectorAll("[data-pen]").forEach(function (x) { x.classList.toggle("on", x === b); });
+      });
+    });
+    padEls = { mask: mask, canvas: canvas, reset: reset, hasInk: function () { return hasInk; } };
+    mask.querySelector('[data-act="clear"]').addEventListener("click", reset);
+    mask.querySelector('[data-act="cancel"]').addEventListener("click", function () { mask.hidden = true; });
+    mask.querySelector('[data-act="ok"]').addEventListener("click", function () {
+      if (!hasInk) { mask.hidden = true; return; }
+      mask.hidden = true;
+      if (padEls.onDone) padEls.onDone(canvas.toDataURL("image/jpeg", 0.85));
+    });
+    return padEls;
+  }
+  function openPad(onDone) {
+    var p = ensurePad();
+    p.onDone = onDone;
+    p.reset();
+    p.mask.hidden = false;
+  }
+
+  /* 照片/图片文件 → 压缩后的 dataURL（最长边 1024） */
+  function fileToDataUrl(file, cb, err) {
+    if (!/^image\//.test(file.type || "")) { err("请选择图片文件（照片、截图）"); return; }
+    if (file.size > 20 * 1024 * 1024) { err("图片太大，请在 20MB 以内"); return; }
+    var fr = new FileReader();
+    fr.onerror = function () { err("图片读取失败"); };
+    fr.onload = function () {
+      var img = new Image();
+      img.onerror = function () { err("图片解析失败"); };
+      img.onload = function () {
+        var MAX = 1024;
+        var sc = Math.min(1, MAX / Math.max(img.width, img.height));
+        var cv = document.createElement("canvas");
+        cv.width = Math.max(1, Math.round(img.width * sc));
+        cv.height = Math.max(1, Math.round(img.height * sc));
+        var g = cv.getContext("2d");
+        g.fillStyle = "#fff";
+        g.fillRect(0, 0, cv.width, cv.height);
+        g.drawImage(img, 0, 0, cv.width, cv.height);
+        cb(cv.toDataURL("image/jpeg", 0.85));
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  }
+
   /* ---------- 挂载：完整小测 UI 与状态机 ---------- */
 
   window.QuizEngine = {
@@ -265,7 +446,14 @@
       }
       function showExplainText(r, btn) {
         var fb = btn.closest(".qe-feedback");
-        if (fb && !fb.querySelector(".qe-explain-text")) {
+        if (!fb) return;
+        if (r.q.explainSvg && !fb.querySelector(".qe-explain-fig")) {
+          var fig = document.createElement("div");
+          fig.className = "qe-explain-fig";
+          fig.innerHTML = r.q.explainSvg; // 已经过 sanitizeSvg 白名单净化
+          fb.appendChild(fig);
+        }
+        if (!fb.querySelector(".qe-explain-text")) {
           var p = document.createElement("p");
           p.className = "qe-explain-text";
           p.textContent = r.q.explainText;
@@ -283,13 +471,14 @@
         btn.dataset.busy = "1";
         btn.textContent = "老师备课中，稍等...";
         var c = ctx.getContext();
-        explainQuestion(cfg(c), r).then(function (text) {
+        explainQuestion(cfg(c), r).then(function (out) {
           delete btn.dataset.busy;
-          if (!text) throw new Error("讲解为空");
-          r.q.explainText = text;
+          if (!out.text) throw new Error("讲解为空");
+          r.q.explainText = out.text;
+          r.q.explainSvg = out.svg || "";
           showExplainText(r, btn);
           ctx.hooks.logEvent("explain", "听讲解：" + r.q.question.slice(0, 40));
-          speakText(text, btn);
+          speakText(out.text, btn);
         }).catch(function (e) {
           delete btn.dataset.busy;
           btn.textContent = "讲解失败，点击重试";
@@ -334,11 +523,131 @@
               }).join("") + "</div>";
             }
             return head + '<textarea class="qe-answer" data-a="' + qi + '" rows="' + (q.type === "think" ? 4 : 2) +
-              '" placeholder="' + (q.type === "think" ? "写下你的思考过程..." : "写下你的答案...") + '"></textarea></div>';
-          }).join("");
+              '" placeholder="' + (q.type === "think" ? "写下你的思考过程..." : "写下你的答案...") + '"></textarea>' +
+              '<div class="qe-tools" data-t="' + qi + '">' +
+              '<button class="qe-mic" data-q="' + qi + '" type="button">🎤 按住说话</button>' +
+              '<button class="qe-draw" data-q="' + qi + '" type="button">✏️ 画图作答</button>' +
+              '<button class="qe-photo" data-q="' + qi + '" type="button">📷 拍照上传</button>' +
+              '<span class="qe-tool-msg" data-m="' + qi + '"></span>' +
+              "</div>" +
+              '<div class="qe-img-box" data-i="' + qi + '" hidden><img alt="作答图片" /><button class="qe-img-del" data-q="' + qi + '" type="button">✕ 移除图片</button></div>' +
+              "</div>";
+          }).join("") +
+          '<input type="file" class="qe-photo-file" accept="image/*" hidden />';
+        bindAnswerTools();
         ctx.els.actionBtn.hidden = false;
         ctx.els.actionBtn.textContent = "提交本轮 " + round.questions.length + " 道题";
         setResult("");
+      }
+
+      /* ---- 语音 / 画图 / 拍照 作答工具 ---- */
+      function toolMsg(qi, text, bad) {
+        var el = ctx.els.box.querySelector('.qe-tool-msg[data-m="' + qi + '"]');
+        if (el) { el.textContent = text; el.classList.toggle("bad", !!bad); }
+      }
+      function setImage(qi, dataUrl) {
+        round.images[qi] = dataUrl;
+        var b = ctx.els.box.querySelector('.qe-img-box[data-i="' + qi + '"]');
+        if (b) { b.hidden = false; b.querySelector("img").src = dataUrl; }
+        toolMsg(qi, "图片已作为这道题的答案，还可以在上面补充文字说明。");
+      }
+      function bindAnswerTools() {
+        round.images = round.images || {};
+        var box = ctx.els.box;
+        var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        var fileInput = box.querySelector(".qe-photo-file");
+        var photoQi = -1;
+
+        Array.prototype.forEach.call(box.querySelectorAll(".qe-mic"), function (btn) {
+          if (!SR) { btn.hidden = true; return; }
+          var qi = Number(btn.dataset.q);
+          var ta = box.querySelector('textarea[data-a="' + qi + '"]');
+          var rec = null, finalTxt = "";
+          function start(e) {
+            e.preventDefault();
+            if (rec || round.graded) return;
+            finalTxt = "";
+            rec = new SR();
+            rec.lang = "zh-CN";
+            rec.continuous = true;
+            rec.interimResults = true;
+            rec.onresult = function (ev) {
+              for (var i = ev.resultIndex; i < ev.results.length; i++) {
+                if (ev.results[i].isFinal) finalTxt += ev.results[i][0].transcript;
+              }
+            };
+            rec.onerror = function (ev) {
+              if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
+                toolMsg(qi, "麦克风没有授权，请在浏览器地址栏允许使用麦克风。", true);
+              }
+            };
+            rec.onend = function () {
+              rec = null;
+              btn.classList.remove("rec");
+              btn.textContent = "🎤 按住说话";
+              var raw = finalTxt.trim();
+              if (!raw) { toolMsg(qi, "没有听清，请按住按钮后大声说。", true); return; }
+              toolMsg(qi, "听到了，AI 正在把你的话整理成答案...");
+              var q = round.questions[qi];
+              var prompt =
+                "孩子在回答题目「" + q.question.slice(0, 120) + "」，下面是语音转文字的口述内容（可能有同音字错误和口语词）：\n" + raw +
+                "\n请整理成书面答案：纠正同音字、去掉口语词，保留孩子原本的意思，绝对不要补充孩子没有表达的内容。只返回整理后的答案本身。";
+              callModelText(cfg(ctx.getContext()), prompt).then(function (txt) {
+                if (!txt) throw new Error("空");
+                ta.value = (ta.value.trim() ? ta.value.trim() + " " : "") + txt;
+                toolMsg(qi, "已整理填入，你可以再修改，或继续按住说话补充。");
+              }).catch(function () {
+                ta.value = (ta.value.trim() ? ta.value.trim() + " " : "") + raw;
+                toolMsg(qi, "已按原话填入（AI 整理暂时不可用）。");
+              });
+            };
+            try { rec.start(); } catch (err) { rec = null; return; }
+            btn.classList.add("rec");
+            btn.textContent = "🔴 正在听...松开结束";
+            toolMsg(qi, "正在听你说话...");
+          }
+          function stop() { if (rec) { try { rec.stop(); } catch (e) { /* 忽略 */ } } }
+          btn.addEventListener("pointerdown", start);
+          btn.addEventListener("pointerup", stop);
+          btn.addEventListener("pointerleave", stop);
+          btn.addEventListener("pointercancel", stop);
+          btn.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+        });
+
+        Array.prototype.forEach.call(box.querySelectorAll(".qe-draw"), function (btn) {
+          btn.addEventListener("click", function () {
+            if (round.graded) return;
+            var qi = Number(btn.dataset.q);
+            openPad(function (dataUrl) { setImage(qi, dataUrl); });
+          });
+        });
+        Array.prototype.forEach.call(box.querySelectorAll(".qe-photo"), function (btn) {
+          btn.addEventListener("click", function () {
+            if (round.graded) return;
+            photoQi = Number(btn.dataset.q);
+            fileInput.value = "";
+            fileInput.click();
+          });
+        });
+        if (fileInput) {
+          fileInput.addEventListener("change", function () {
+            var f = fileInput.files[0];
+            if (!f || photoQi < 0) return;
+            var qi = photoQi;
+            toolMsg(qi, "正在处理图片...");
+            fileToDataUrl(f, function (dataUrl) { setImage(qi, dataUrl); }, function (msg) { toolMsg(qi, msg, true); });
+          });
+        }
+        Array.prototype.forEach.call(box.querySelectorAll(".qe-img-del"), function (btn) {
+          btn.addEventListener("click", function () {
+            if (round.graded) return;
+            var qi = Number(btn.dataset.q);
+            delete round.images[qi];
+            var b = box.querySelector('.qe-img-box[data-i="' + qi + '"]');
+            if (b) { b.hidden = true; b.querySelector("img").src = ""; }
+            toolMsg(qi, "图片已移除。");
+          });
+        });
       }
 
       function applyGrades(results) {
@@ -388,6 +697,10 @@
               : "") + "</div>";
           div.insertAdjacentHTML("beforeend", fb);
           Array.prototype.forEach.call(div.querySelectorAll("input,textarea"), function (el) { el.disabled = true; });
+          var tools = div.querySelector(".qe-tools");
+          if (tools) tools.hidden = true;
+          var imgDel = div.querySelector(".qe-img-del");
+          if (imgDel) imgDel.hidden = true;
         });
         Array.prototype.forEach.call(ctx.els.box.querySelectorAll(".qe-explain"), function (btn) {
           btn.addEventListener("click", function () {
@@ -430,7 +743,7 @@
         }).then(function (questions) {
           busy = false;
           if (!questions) return;
-          round = { questions: questions, graded: false };
+          round = { questions: questions, graded: false, images: {} };
           renderQuestions();
         }).catch(function (e) {
           busy = false;
@@ -442,6 +755,7 @@
 
       function submitRound() {
         var answers = [];
+        round.images = round.images || {};
         for (var qi = 0; qi < round.questions.length; qi++) {
           var q = round.questions[qi];
           if (q.type === "choice") {
@@ -450,25 +764,47 @@
             answers.push({ q: q, choice: Number(checked.value) });
           } else {
             var ta = ctx.els.box.querySelector('textarea[data-a="' + qi + '"]');
-            if (!ta.value.trim()) { setResult("第 " + (qi + 1) + " 题还没有作答。", "bad"); return; }
-            answers.push({ q: q, text: ta.value.trim() });
+            var txt = ta ? ta.value.trim() : "";
+            var img = round.images[qi] || null;
+            if (!txt && !img) { setResult("第 " + (qi + 1) + " 题还没有作答（可以打字、按住🎤说话，或✏️画图/📷拍照）。", "bad"); return; }
+            answers.push({ q: q, text: txt, img: img });
           }
         }
         busy = true;
         ctx.els.actionBtn.hidden = true;
-        setResult("选择题已判分，AI 正在批改简答和思考题...");
         var opens = answers.filter(function (a) { return a.q.type !== "choice"; });
-        gradeOpen(cfg(ctx.getContext()), opens.map(function (a) {
-          return { question: a.q.question, refAnswer: a.q.refAnswer, childAnswer: a.text };
-        })).then(function (verdicts) {
+        var textOpens = opens.filter(function (a) { return !a.img; });
+        var imgOpens = opens.filter(function (a) { return a.img; });
+        setResult(imgOpens.length
+          ? "选择题已判分，AI 正在识别你画的图并批改简答和思考题..."
+          : "选择题已判分，AI 正在批改简答和思考题...");
+        var c0 = cfg(ctx.getContext());
+        Promise.all([
+          gradeOpen(c0, textOpens.map(function (a) {
+            return { question: a.q.question, refAnswer: a.q.refAnswer, childAnswer: a.text };
+          })),
+          Promise.all(imgOpens.map(function (a) {
+            return gradeImage(c0, { question: a.q.question, refAnswer: a.q.refAnswer, childAnswer: a.text, img: a.img });
+          })),
+        ]).then(function (res) {
           busy = false;
-          var oi = 0;
+          var tv = res[0], iv = res[1];
+          var ti = 0, ii = 0;
           var results = answers.map(function (a) {
             if (a.q.type === "choice") {
               return { q: a.q, verdict: a.choice === a.q.answer ? "right" : "wrong", comment: "", childText: a.q.options[a.choice] };
             }
-            var v = verdicts[oi++] || { verdict: "wrong", comment: "" };
-            return { q: a.q, verdict: v.verdict, comment: v.comment, childText: a.text };
+            if (a.img) {
+              var v = iv[ii++] || { verdict: "wrong", comment: "", desc: "" };
+              return {
+                q: a.q, verdict: v.verdict,
+                comment: (v.desc ? "AI 看到：" + v.desc + "。" : "") + (v.comment || ""),
+                childText: (a.text ? a.text + "；" : "") + "[画图作答] " + (v.desc || ""),
+                hasImg: true,
+              };
+            }
+            var v2 = tv[ti++] || { verdict: "wrong", comment: "" };
+            return { q: a.q, verdict: v2.verdict, comment: v2.comment, childText: a.text };
           });
           applyGrades(results);
         }).catch(function (e) {

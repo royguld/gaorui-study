@@ -177,6 +177,7 @@
       </div>
     </div>
 
+    <script src="./gaorui-data.js"></script>
     <script>
       (function () {
         "use strict";
@@ -245,10 +246,29 @@
           }
           return { done: done, total: total, streak: streak, last: last };
         }
-        function gaoruiStats() {
-          var done = loadJSON("completedLessons", []).length;
-          var days = loadJSON("grx:activeDays", []);
-          return { done: done, total: 21, streak: 0, last: days.length ? days[days.length - 1] : "" };
+        /* 高睿一次性迁移为标准孩子档案：课程入 family:children，旧进度键接续使用 */
+        function migrateGaorui() {
+          try {
+            if (localStorage.getItem("family:grxMigrated")) return;
+            if (!window.GAORUI_SUBJECTS) return;
+            var kids = loadJSON("family:children", []);
+            if (!kids.some(function (c) { return c.podId === "grx"; })) {
+              kids.unshift({
+                podId: "grx",
+                createdAt: Date.now(),
+                generatedAt: "2026-07-06",
+                student: { name: "高睿", grade: "八升九 · GIC / IG 预习", goal: "完成暑假作业，预习九年级与 IG 学科", days: 56 },
+                subjects: window.GAORUI_SUBJECTS,
+              });
+              saveJSON("family:children", kids);
+            }
+            // 旧版"标记已学"进度：completedLessons → grx:completed
+            if (!localStorage.getItem("grx:completed")) {
+              var old = localStorage.getItem("completedLessons");
+              if (old) localStorage.setItem("grx:completed", old);
+            }
+            localStorage.setItem("family:grxMigrated", "1");
+          } catch (e) { /* 忽略 */ }
         }
         function cardHtml(name, grade, stats, href, delId, reportId) {
           var pct = stats.total ? Math.min(100, Math.round((stats.done / stats.total) * 100)) : 0;
@@ -274,11 +294,13 @@
           return n;
         }
         function renderCards() {
+          migrateGaorui();
           var children = loadJSON("family:children", []);
-          var html = cardHtml("高睿", "八升九 · GIC / IG 预习", gaoruiStats(), "./index.html", "", "__gaorui__");
+          var html = "";
           children.forEach(function (c) {
             var stats = childStats(c.podId, countLessons(c));
-            html += cardHtml(c.student.name, c.student.grade, stats, "./learn.html?child=" + encodeURIComponent(c.podId), c.podId, c.podId);
+            var delId = c.podId === "grx" ? "" : c.podId; // 高睿档案不提供删除，防误删
+            html += cardHtml(c.student.name, c.student.grade, stats, "./learn.html?child=" + encodeURIComponent(c.podId), delId, c.podId);
           });
           html += '<a class="add-card" href="./custom.html"><span><strong>＋</strong>添加孩子<br />填写情况，生成专属学习舱</span></a>';
           $("cards").innerHTML = html;

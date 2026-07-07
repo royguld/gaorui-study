@@ -847,3 +847,35 @@ button {
   display: inline-block; margin-left: 6px; background: #fff4df; color: #d88a18;
   border-radius: 6px; padding: 4px 8px; font-size: 12px; font-weight: 700;
 }
+
+/* ===== 语音 / 画图 / 拍照 作答工具 ===== */
+.qe-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.qe-tools button {
+  border: 1px solid #d5e2ee; background: #f4f9fd; color: #2a4a68; border-radius: 8px;
+  padding: 8px 12px; font: inherit; font-size: 13px; cursor: pointer;
+  user-select: none; -webkit-user-select: none; touch-action: none;
+}
+.qe-tools button:hover { background: #e8f3fb; }
+.qe-mic.rec { background: #ffe9e6 !important; border-color: #e2604f !important; color: #b13c2e; font-weight: 700; }
+.qe-tool-msg { font-size: 12.5px; color: #6b7f92; }
+.qe-tool-msg.bad { color: #b13c2e; font-weight: 700; }
+.qe-img-box { margin-top: 8px; }
+.qe-img-box img { display: block; max-width: 240px; max-height: 170px; border: 1px solid #d5e2ee; border-radius: 8px; background: #fff; }
+.qe-img-del { margin-top: 5px; border: 1px solid #e3cccc; background: #fff5f5; color: #a04545; border-radius: 6px; padding: 5px 9px; font: inherit; font-size: 12px; cursor: pointer; }
+
+/* ===== 画板弹层 ===== */
+.qe-pad-mask { position: fixed; inset: 0; background: rgba(16, 38, 59, 0.55); display: grid; place-items: center; z-index: 80; padding: 12px; }
+.qe-pad-mask[hidden] { display: none; }
+.qe-pad { width: 100%; max-width: 680px; background: #fff; border-radius: 12px; padding: 14px; }
+.qe-pad-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; margin-bottom: 8px; }
+.qe-pad-head strong { font-size: 16px; color: #14283f; }
+.qe-pad-head span { font-size: 12.5px; color: #6b7f92; }
+.qe-pad-canvas { width: 100%; height: auto; border: 1.5px dashed #c9d9e8; border-radius: 8px; background: #fff; touch-action: none; cursor: crosshair; display: block; }
+.qe-pad-tools { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.qe-pad-tools button { border: 1px solid #d5e2ee; background: #f4f9fd; color: #2a4a68; border-radius: 8px; padding: 9px 13px; font: inherit; font-size: 13px; cursor: pointer; }
+.qe-pad-tools button.on { border-color: #0f9f9a; color: #0b7c78; background: #e9f8f7; font-weight: 700; }
+.qe-pad-ok { background: #0f9f9a !important; border-color: #0f9f9a !important; color: #fff !important; font-weight: 700; }
+
+/* ===== 讲解图例（AI 生成 SVG，可含动画） ===== */
+.qe-explain-fig { margin-top: 10px; background: #fff; border: 1px solid #e3ecf4; border-radius: 10px; padding: 8px; overflow: hidden; }
+.qe-explain-fig svg { display: block; width: 100%; height: auto; max-height: 420px; }
