@@ -7,6 +7,23 @@
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./pod-template.css" />
     <style>
+      /* 添加学习资料弹层 */
+      .mat-mask { position: fixed; inset: 0; background: rgba(16, 38, 59, 0.5); display: grid; place-items: center; z-index: 60; padding: 16px; }
+      .mat-modal { width: 100%; max-width: 520px; max-height: 90vh; overflow: auto; background: #fff; border-radius: 12px; padding: 22px; color: #14283f; }
+      .mat-modal h2 { margin: 0 0 4px; font-size: 18px; }
+      .mat-modal .mat-tip { margin: 0 0 12px; color: #64748b; font-size: 12.5px; line-height: 1.6; }
+      .mat-modal label { display: block; font-size: 13px; color: #33506b; margin-bottom: 10px; }
+      .mat-modal textarea, .mat-modal select, .mat-modal input[type="text"] { width: 100%; margin-top: 5px; border: 1px solid #dbe5ee; border-radius: 7px; padding: 9px 11px; font: inherit; font-size: 13.5px; background: #fbfdff; }
+      .mat-modal textarea { resize: vertical; }
+      .mat-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+      .mat-btns button { border: 1px solid #dbe5ee; background: #f5f8fb; color: #33506b; border-radius: 7px; padding: 10px 15px; font: inherit; font-size: 13.5px; cursor: pointer; }
+      .mat-btns .mat-go { background: #0f9f9a; border-color: #0f9f9a; color: #fff; font-weight: 700; }
+      .mat-msg { margin: 10px 0 0; font-size: 12.5px; min-height: 18px; color: #64748b; line-height: 1.6; }
+      .mat-msg.bad { color: #b13c2e; font-weight: 700; }
+      .mat-msg.ok { color: #1d7a4f; font-weight: 700; }
+      .mat-file { font-size: 12.5px; color: #64748b; margin-bottom: 10px; }
+      [hidden] { display: none !important; }
+
       .sidebar-link {
         display: block; color: #cfe3f5; text-decoration: none; font-size: 13px;
         background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12);
@@ -32,6 +49,7 @@
 
         <a class="sidebar-link" href="./home.html">⇄ 切换孩子 · 返回起始页</a>
         <a class="sidebar-link" id="reportLink" href="./report.html">学习报告 · 给家长看</a>
+        <a class="sidebar-link" id="addMaterialBtn" href="javascript:void(0)">＋ 添加学习资料 · 自动生成课程</a>
 
         <div class="sidebar-note">
           <span>今日原则</span>
@@ -130,6 +148,26 @@
       </main>
     </div>
 
+    <!-- 添加学习资料弹层 -->
+    <div class="mat-mask" id="matMask" hidden>
+      <div class="mat-modal">
+        <h2>添加学习资料，自动生成课程</h2>
+        <p class="mat-tip">把想学的资料粘贴进来（课本目录、讲义、单词表、题目都行）。AI 会按你最近的小测表现确定起点难度，把资料拆成由易到难的知识点，安排到每天学习。</p>
+        <label>资料放到哪里
+          <select id="matTarget"></select>
+        </label>
+        <label>新科目名称（选"生成新科目"时填）<input type="text" id="matLabel" placeholder="例如：奥数思维、科学实验" /></label>
+        <label>粘贴学习资料<textarea id="matText" rows="8" placeholder="粘贴文字资料，或用下面按钮选择文本文件"></textarea></label>
+        <p class="mat-file"><button id="matFileBtn" type="button">选择文本文件（txt/md/csv）</button>　PDF、Word、照片等请让家长在"添加孩子"页导入资料包后复制过来。</p>
+        <input type="file" id="matFile" accept=".txt,.md,.csv,.json" hidden />
+        <div class="mat-btns">
+          <button class="mat-go" id="matGo" type="button">生成课程（由易到难）</button>
+          <button id="matCancel" type="button">取消</button>
+        </div>
+        <p class="mat-msg" id="matMsg"></p>
+      </div>
+    </div>
+
     <script src="./auth.js"></script>
     <script>
       /* 从本机家庭档案读取该孩子的课程，注入 LEARNING_DATA 供运行时渲染 */
@@ -155,6 +193,135 @@
         document.getElementById("brandTitle").textContent = name + "学习舱";
         document.getElementById("brandSub").textContent = child.student.grade + " · " + child.student.goal;
         document.getElementById("reportLink").href = "./report.html?child=" + encodeURIComponent(child.podId);
+
+        /* ---------- 添加学习资料 → AI 生成/补充课程 ---------- */
+        var $m = function (id) { return document.getElementById(id); };
+        function matMsg(t, cls) { $m("matMsg").textContent = t; $m("matMsg").className = "mat-msg" + (cls ? " " + cls : ""); }
+        function getChildAI() {
+          if (child.ai && child.ai.apiKey) return child.ai;
+          try {
+            var c = JSON.parse(localStorage.getItem("family:aiConfig") || "null");
+            if (c && c.apiKey) return c;
+            var k = localStorage.getItem("family:apiKey");
+            if (k) return { apiKey: k, model: "qwen-plus", endpoint: "" };
+          } catch (e) { /* 忽略 */ }
+          return null;
+        }
+        function recentAbility() {
+          var sc = [];
+          try { sc = JSON.parse(localStorage.getItem(child.podId + ":scores") || "[]"); } catch (e) { /* 忽略 */ }
+          var last = sc.slice(-10);
+          var got = 0, tot = 0;
+          last.forEach(function (s) { got += s.score; tot += s.total; });
+          return tot ? Math.round((got / tot) * 100) : null;
+        }
+        $m("addMaterialBtn").addEventListener("click", function () {
+          var sel = $m("matTarget");
+          sel.innerHTML = '<option value="__new__">生成一个新科目</option>' +
+            Object.keys(child.subjects).map(function (k) {
+              return '<option value="' + k + '">补充到：' + child.subjects[k].label + "</option>";
+            }).join("");
+          matMsg("");
+          $m("matMask").hidden = false;
+        });
+        $m("matCancel").addEventListener("click", function () { $m("matMask").hidden = true; });
+        $m("matMask").addEventListener("click", function (e) { if (e.target === $m("matMask")) $m("matMask").hidden = true; });
+        $m("matFileBtn").addEventListener("click", function () { $m("matFile").click(); });
+        $m("matFile").addEventListener("change", function () {
+          var f = $m("matFile").files[0];
+          if (!f) return;
+          if (f.size > 5 * 1024 * 1024) { matMsg("文本文件请在 5MB 以内。", "bad"); return; }
+          var r = new FileReader();
+          r.onload = function () { $m("matText").value += (($m("matText").value ? "\n\n" : "") + r.result).slice(0, 60000); matMsg("文件内容已加入。", "ok"); };
+          r.readAsText(f);
+          $m("matFile").value = "";
+        });
+        $m("matGo").addEventListener("click", function () {
+          var material = $m("matText").value.trim();
+          if (material.length < 20) { matMsg("请先粘贴足够的学习资料（至少 20 字）。", "bad"); return; }
+          var ai = getChildAI();
+          if (!ai || !ai.apiKey) { matMsg("需要先在起始页\"AI 设置\"里配置 API Key。", "bad"); return; }
+          var target = $m("matTarget").value;
+          var isNew = target === "__new__";
+          var newLabel = $m("matLabel").value.trim();
+          if (isNew && !newLabel) { matMsg("请给新科目起个名字。", "bad"); return; }
+          var pct = recentAbility();
+          var existTitles = !isNew ? child.subjects[target].lessons.map(function (l) { return l.title; }) : [];
+          if (!isNew && child.subjects[target].lessons.length >= 20) { matMsg("该科目课程已达 20 个上限，请生成新科目。", "bad"); return; }
+          var prompt =
+            "你是学习规划师。学生：" + child.student.name + "，" + child.student.grade + "。" +
+            (pct === null ? "还没有小测记录，按该年级常规水平安排。" : "近期小测平均正确率 " + pct + "%。低于60%请从最基础讲起并放慢梯度；高于80%可适当加深。") + "\n" +
+            "【学生新增的学习资料】\n" + material.slice(0, 20000) + "\n\n" +
+            (isNew
+              ? "任务：把资料整理成新科目《" + newLabel + "》的课程。"
+              : "任务：把资料整理成课程，补充到已有科目《" + child.subjects[target].label + "》。该科目已有课程（不要重复，内容和难度要衔接在其后）：" + existTitles.join("、") + "。") +
+            "\n拆成 4-8 个知识点课件，严格按从易到难排序（第1课最简单，逐课递进），这个顺序就是每天的学习顺序。每课包含：" +
+            'title、status(填"第N阶·难度说明"如"第1阶·入门")、oneLine、sections(3-5节每节100-250字含例题和过程)、example、steps(3-4步)、narration(与steps对应)、terms(3-6个)、mistake、review(2-3条)、points(5-8个考点{id,label})、quiz(3道基础选择题[题目,[选项],答案下标]，答案位置随机)。' +
+            '\n只返回 JSON：{"label":"' + (isNew ? newLabel : child.subjects[target].label) + '","lessons":[...]}';
+          $m("matGo").disabled = true;
+          matMsg("AI 正在按你的水平整理课程并排出由易到难的每日顺序（约 60-120 秒）...");
+          fetch(ai.endpoint || "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + ai.apiKey },
+            body: JSON.stringify({ model: ai.model || "qwen-plus", temperature: 0.4, messages: [
+              { role: "system", content: "你只输出合法 JSON。" },
+              { role: "user", content: prompt },
+            ] }),
+          }).then(function (r) {
+            return r.json().then(function (d) {
+              if (!r.ok) throw new Error((d.error && d.error.message) || "接口返回 " + r.status);
+              var text = String(d.choices[0].message.content).trim().replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+              var s = text.indexOf("{"), e = text.lastIndexOf("}");
+              return JSON.parse(text.slice(s, e + 1));
+            });
+          }).then(function (raw) {
+            var lessons = (raw.lessons || []).slice(0, 8).map(function (l, i) {
+              if (!l || !l.title) return null;
+              return {
+                title: String(l.title), status: String(l.status || "第" + (i + 1) + "阶"),
+                oneLine: String(l.oneLine || "用一句话说清这个知识点。"),
+                sections: (l.sections || []).slice(0, 6).map(function (s) { return { h: String(s.h || ""), text: String(s.text || "") }; }),
+                example: String(l.example || "结合生活例子理解。"),
+                steps: (l.steps || []).slice(0, 4).map(String).length ? (l.steps || []).slice(0, 4).map(String) : ["看概念", "看例子", "做小测"],
+                narration: (l.narration || []).slice(0, 4).map(String),
+                terms: (l.terms || []).slice(0, 8).map(function (t) { return Array.isArray(t) ? [String(t[0]), String(t[1] || "")] : [String(t), ""]; }),
+                mistake: String(l.mistake || "不要只记结论，要能说出原因。"),
+                review: (l.review || []).slice(0, 5).map(String),
+                points: (l.points || []).slice(0, 8).map(function (p, pi) { return { id: String((p && p.id) || "p" + (pi + 1)), label: String((p && p.label) || p || "考点" + (pi + 1)) }; }),
+                quiz: (l.quiz || []).slice(0, 5).map(function (q) {
+                  if (Array.isArray(q) && q.length >= 3) {
+                    var opts = (q[1] || []).slice(0, 4).map(String);
+                    var a = parseInt(q[2], 10);
+                    if (opts.length >= 2 && a >= 0 && a < opts.length) return [String(q[0]), opts, a];
+                  }
+                  return null;
+                }).filter(Boolean),
+              };
+            }).filter(Boolean);
+            if (!lessons.length) throw new Error("模型没有返回有效课程，请重试");
+            lessons.forEach(function (l) { if (!l.quiz.length) l.quiz = [["这个知识点最核心的是？", ["先理解概念", "只背答案"], 0]]; });
+            // 写回家庭档案
+            var kids = JSON.parse(localStorage.getItem("family:children") || "[]");
+            var me = kids.filter(function (c) { return c.podId === child.podId; })[0];
+            if (!me) throw new Error("找不到孩子档案");
+            if (isNew) {
+              var skey = "x" + Date.now().toString(36);
+              me.subjects[skey] = { label: String(raw.label || newLabel), tasks: [], lessons: lessons };
+            } else {
+              me.subjects[target].lessons = me.subjects[target].lessons.concat(lessons);
+            }
+            localStorage.setItem("family:children", JSON.stringify(kids));
+            matMsg("已生成 " + lessons.length + " 个知识点（由易到难），正在刷新学习舱...", "ok");
+            try {
+              var log = JSON.parse(localStorage.getItem(child.podId + ":log") || "[]");
+              log.push({ t: Date.now(), d: new Date().toISOString().slice(0, 10), type: "material", detail: "添加学习资料，生成 " + lessons.length + " 课：" + (isNew ? newLabel : me.subjects[target].label) });
+              localStorage.setItem(child.podId + ":log", JSON.stringify(log));
+            } catch (e) { /* 忽略 */ }
+            setTimeout(function () { try { location.reload(); } catch (e) { /* 测试环境忽略 */ } }, 1200);
+          }).catch(function (e) {
+            matMsg("生成失败：" + e.message, "bad");
+          }).finally(function () { $m("matGo").disabled = false; });
+        });
       })();
     </script>
     <script src="./quiz-engine.js"></script>

@@ -294,6 +294,11 @@
 
   function renderMap(subjectKey, subject) {
     subjectSummary.textContent = subject.label + " · " + subject.lessons.length + " 个知识点";
+    // 每日安排：按由易到难的课程顺序，第一个未学完的就是今天建议学的
+    let todayIndex = -1;
+    for (let i = 0; i < subject.lessons.length; i++) {
+      if (!completedLessons.has(lessonKey(subjectKey, i))) { todayIndex = i; break; }
+    }
     questMap.innerHTML = subject.lessons
       .map(function (lesson, index) {
         const done = completedLessons.has(lessonKey(subjectKey, index));
@@ -306,7 +311,9 @@
           index +
           '"><span class="node-status">' +
           (done ? "已学 ✓" : esc(lesson.status)) +
-          "</span><h4>" +
+          "</span>" +
+          (index === todayIndex ? '<span class="today-badge">今日建议</span>' : "") +
+          "<h4>" +
           esc(lesson.title) +
           "</h4><p>" +
           esc(lesson.oneLine) +

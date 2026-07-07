@@ -841,3 +841,9 @@ button {
   margin: 8px 0 0; padding: 10px 12px; background: #ffffff; border: 1px dashed #bfe8e3;
   border-radius: 7px; color: #14532d; font-size: 13px; line-height: 1.75;
 }
+
+/* ===== 今日建议标记 ===== */
+.today-badge {
+  display: inline-block; margin-left: 6px; background: #fff4df; color: #d88a18;
+  border-radius: 6px; padding: 4px 8px; font-size: 12px; font-weight: 700;
+}
