@@ -266,6 +266,77 @@
     });
   }
 
+  /* ---------- 🔊 PodVoice：挑选最自然的中文男/女老师声音 ----------
+   * 浏览器/系统里往往装着好几个中文声音，质量差别很大。
+   * 这里按"自然度"打分挑选：微软 Natural/Neural 在线声(Edge) > Google 普通话 >
+   * 系统声(婷婷等) > 兜底默认声。家长/孩子可切换 男老师/女老师。 */
+  var VOICE_KEY = "family:voice";
+  var FEMALE_HINTS = ["xiaoxiao", "xiaoyi", "xiaohan", "xiaomo", "xiaoxuan", "xiaorui", "晓", "tingting", "ting-ting", "婷", "meijia", "美嘉", "huihui", "慧", "yaoyao", "瑶", "lili", "female", "女"];
+  var MALE_HINTS = ["yunxi", "云希", "yunjian", "云健", "yunyang", "云扬", "yunye", "云野", "yunhao", "云皓", "kangkang", "康", "binbin", "斌", "male", "男"];
+  function voicePref() {
+    try { return localStorage.getItem(VOICE_KEY) || "female"; } catch (e) { return "female"; }
+  }
+  function setVoicePref(v) { try { localStorage.setItem(VOICE_KEY, v); } catch (e) { /* 忽略 */ } }
+  function zhVoices() {
+    try {
+      return window.speechSynthesis.getVoices().filter(function (v) {
+        return /^zh|^cmn/i.test(v.lang || "") || /中文|普通话|Chinese/i.test(v.name || "");
+      });
+    } catch (e) { return []; }
+  }
+  function scoreVoice(v, gender) {
+    var n = (v.name || "").toLowerCase();
+    var s = 0;
+    if (/natural|neural/.test(n)) s += 60;            // Edge 的拟真人声
+    else if (/online/.test(n)) s += 40;
+    if (n.indexOf("google") >= 0) s += 25;             // Chrome 的谷歌声比系统声自然
+    if (!v.localService) s += 8;
+    if (/^zh[-_]cn/i.test(v.lang || "")) s += 6;
+    var want = gender === "male" ? MALE_HINTS : FEMALE_HINTS;
+    var avoid = gender === "male" ? FEMALE_HINTS : MALE_HINTS;
+    for (var i = 0; i < want.length; i++) { if (n.indexOf(want[i]) >= 0) { s += 35; break; } }
+    for (var j = 0; j < avoid.length; j++) { if (n.indexOf(avoid[j]) >= 0) { s -= 30; break; } }
+    return s;
+  }
+  function pickVoice(gender) {
+    var vs = zhVoices();
+    if (!vs.length) return null;
+    var best = null, bs = -1e9;
+    vs.forEach(function (v) { var s = scoreVoice(v, gender); if (s > bs) { bs = s; best = v; } });
+    return best;
+  }
+  function podSpeak(text, onend) {
+    if (!("speechSynthesis" in window)) { if (onend) onend(); return false; }
+    var g = voicePref();
+    var u = new SpeechSynthesisUtterance(String(text));
+    u.lang = "zh-CN";
+    var v = pickVoice(g);
+    if (v) u.voice = v;
+    var natural = v && /natural|neural/i.test(v.name || "");
+    u.rate = natural ? 1.0 : 0.92;                       // 拟真人声用原速，普通声放慢更像讲课
+    if (v) u.pitch = g === "male" ? 0.92 : 1.03;
+    else u.pitch = g === "male" ? 0.72 : 1.12;           // 找不到对应性别声音时用音调区分
+    u.onend = u.onerror = function () { if (onend) onend(); };
+    try { window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } catch (e) { if (onend) onend(); }
+    return true;
+  }
+  window.PodVoice = {
+    pref: voicePref,
+    setPref: setVoicePref,
+    pick: pickVoice,
+    speak: podSpeak,
+    supported: function () { return "speechSynthesis" in window; },
+  };
+  /* 声音列表是异步加载的，先“预热”一次 */
+  try {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.getVoices();
+      if (typeof window.speechSynthesis.onvoiceschanged !== "undefined") {
+        window.speechSynthesis.onvoiceschanged = function () { try { window.speechSynthesis.getVoices(); } catch (e) { /* 忽略 */ } };
+      }
+    }
+  } catch (e) { /* 忽略 */ }
+
   /* ---------- 🎊 彩带庆祝（答满分/掌握考点/完成任务时的欢呼） ---------- */
   function fxBurst(count) {
     try {
@@ -458,16 +529,12 @@
       }
       function speakText(text, btn) {
         stopEngineSpeech();
-        if (!("speechSynthesis" in window)) { btn.textContent = "🔈 再听一遍"; return; }
-        var u = new SpeechSynthesisUtterance(text);
-        u.lang = "zh-CN";
-        u.rate = 0.95;
-        u.onend = u.onerror = function () {
-          if (speakingBtn === btn) { btn.textContent = "🔈 再听一遍"; speakingBtn = null; }
-        };
+        if (!window.PodVoice || !window.PodVoice.supported()) { btn.textContent = "🔈 再听一遍"; return; }
         speakingBtn = btn;
         btn.textContent = "⏹ 停止朗读";
-        window.speechSynthesis.speak(u);
+        window.PodVoice.speak(text, function () {
+          if (speakingBtn === btn) { btn.textContent = "🔈 再听一遍"; speakingBtn = null; }
+        });
       }
       function showExplainText(r, btn) {
         var fb = btn.closest(".qe-feedback");

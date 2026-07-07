@@ -254,9 +254,27 @@
     saveJSON("tasks", tasksState);
   }
 
+  /* 每日任务补齐到 5 个：科目自带任务在前，不足的用通用学习任务补足 */
+  const GENERIC_TASKS = [
+    ["AI 小测一轮", "完成一轮 15 道的 AI 小测，做错的题点开听老师讲解。"],
+    ["错题复核", "把复核队列里的错题重做一遍，能说出错在哪才算过。"],
+    ["开口讲一讲", "把今天学的知识点讲给家长听 1 分钟，讲得清才算真会。"],
+    ["朗读课文", "把本课的课文和生活例子大声朗读一遍。"],
+    ["预习下一关", "打开闯关地图的下一个知识点，先把概念看一遍。"],
+  ];
+  function fullTasks(subject) {
+    const t = (subject.tasks || []).slice(0, 5).map(function (x) { return [String(x[0]), String(x[1])]; });
+    for (let i = 0; t.length < 5 && i < GENERIC_TASKS.length; i++) {
+      const g = GENERIC_TASKS[i];
+      if (!t.some(function (x) { return x[0] === g[0]; })) t.push(g);
+    }
+    return t;
+  }
+
   function renderTasks(subject) {
     const checked = getTodayTaskState(currentSubjectKey);
-    taskList.innerHTML = (subject.tasks || [])
+    const tasks = fullTasks(subject);
+    taskList.innerHTML = tasks
       .map(function (task, index) {
         const isDone = checked.indexOf(index) !== -1;
         return (
@@ -284,7 +302,7 @@
         box.closest(".task").classList.toggle("done", box.checked);
         if (box.checked) {
           markActiveToday();
-          logEvent("task", subject.label + "任务：" + (subject.tasks[idx] ? subject.tasks[idx][0] : "任务" + (idx + 1)));
+          logEvent("task", subject.label + "任务：" + (tasks[idx] ? tasks[idx][0] : "任务" + (idx + 1)));
         }
       });
     });
@@ -293,15 +311,33 @@
   /* ---------- 闯关地图 ---------- */
 
   function renderMap(subjectKey, subject) {
-    subjectSummary.textContent = subject.label + " · " + subject.lessons.length + " 个知识点";
+    const doneCount = subject.lessons.filter(function (_, i) { return completedLessons.has(lessonKey(subjectKey, i)); }).length;
+    subjectSummary.textContent = subject.label + " · 共 " + subject.lessons.length + " 关 · 已通 " + doneCount + " 关";
     // 每日安排：按由易到难的课程顺序，第一个未学完的就是今天建议学的
     let todayIndex = -1;
     for (let i = 0; i < subject.lessons.length; i++) {
       if (!completedLessons.has(lessonKey(subjectKey, i))) { todayIndex = i; break; }
     }
+    const masteryMap = loadJSON("mastery", {});
     questMap.innerHTML = subject.lessons
       .map(function (lesson, index) {
         const done = completedLessons.has(lessonKey(subjectKey, index));
+        /* 考点掌握进度（AI 小测记录的连对两次数据） */
+        const mk = masteryMap[subjectKey + ":" + index] || {};
+        const ptList = mk.pointList || lesson.points || [];
+        const ptTotal = ptList.length;
+        let ptDone = 0;
+        ptList.forEach(function (p) { if (((mk.points || {})[p.id] || {}).mastered) ptDone++; });
+        const secN = (lesson.sections || []).length;
+        const termN = (lesson.terms || []).length;
+        const pct = ptTotal ? Math.round((ptDone / ptTotal) * 100) : (done ? 100 : 0);
+        const meta =
+          '<span class="node-meta">' +
+          (secN ? "<i>📚 " + secN + " 节课文</i>" : "<i>📚 精讲课</i>") +
+          (ptTotal ? "<i>🎯 考点 " + ptDone + "/" + ptTotal + "</i>" : "<i>🎯 考点测出来解锁</i>") +
+          (termN ? "<i>🔤 " + termN + " 个关键词</i>" : "") +
+          "</span>" +
+          '<span class="node-bar"><i style="width:' + pct + '%"></i></span>';
         return (
           '<button class="quest-node ' +
           (index === currentLessonIndex ? "active" : "") +
@@ -309,15 +345,16 @@
           (done ? "done" : "") +
           '" data-index="' +
           index +
-          '"><span class="node-status">' +
-          (done ? "已学 ✓" : esc(lesson.status)) +
+          '"><span class="node-top"><span class="node-num">第 ' + (index + 1) + " 关</span>" +
+          '<span class="node-status">' +
+          (done ? "已通关 ✓" : esc(lesson.status)) +
           "</span>" +
           (index === todayIndex ? '<span class="today-badge">今日建议</span>' : "") +
-          "<h4>" +
+          "</span><h4>" +
           esc(lesson.title) +
           "</h4><p>" +
           esc(lesson.oneLine) +
-          "</p></button>"
+          "</p>" + meta + "</button>"
         );
       })
       .join("");
@@ -359,8 +396,9 @@
     markDone.textContent = done ? "已学 · 点击取消" : "标记已学";
     markDone.classList.toggle("active", done);
 
-    playLesson.textContent = animationTimer ? "暂停" : "播放讲解";
-    playLesson.classList.toggle("active", Boolean(animationTimer));
+    const playingNow = Boolean(animationTimer) || playingVoice;
+    playLesson.textContent = playingNow ? "⏸ 停止讲解" : "▶ 播放讲解";
+    playLesson.classList.toggle("active", playingNow);
     animationLabel.textContent =
       "分步讲解 · Step " + (currentAnimationStep + 1) + "/" + lesson.steps.length;
     animationProgress.style.width =
@@ -601,14 +639,22 @@
     renderReviewQueue();
   }
 
-  /* ---------- 分步讲解：播完即停 ---------- */
+  /* ---------- 分步讲解：老师逐步开口讲，讲完一步自动进下一步 ---------- */
+
+  let playingVoice = false; // 语音分步讲解进行中
 
   function stopAnimation() {
     if (animationTimer) {
       clearInterval(animationTimer);
       animationTimer = null;
     }
+    if (playingVoice) {
+      playingVoice = false;
+      try { if ("speechSynthesis" in window) window.speechSynthesis.cancel(); } catch (e) { /* 忽略 */ }
+    }
   }
+
+  function isPlaying() { return Boolean(animationTimer) || playingVoice; }
 
   function advanceAnimation() {
     const lesson = getLesson();
@@ -621,17 +667,44 @@
     render();
   }
 
+  /* 语音版：讲当前步（步骤名+讲解词），讲完自动进入下一步 */
+  function playStepVoice() {
+    if (!playingVoice) return;
+    const lesson = getLesson();
+    render();
+    const text = "第" + (currentAnimationStep + 1) + "步，" +
+      (lesson.steps[currentAnimationStep] || "") + "。" +
+      (lesson.narration[currentAnimationStep] || "");
+    window.PodVoice.speak(text, function () {
+      if (!playingVoice) return;
+      if (currentAnimationStep >= getLesson().steps.length - 1) {
+        playingVoice = false;
+        render();
+        return;
+      }
+      currentAnimationStep += 1;
+      playStepVoice();
+    });
+  }
+
   playLesson.addEventListener("click", function () {
-    if (animationTimer) {
+    if (isPlaying()) {
       stopAnimation();
       render();
       return;
     }
+    stopSpeech();
     const lesson = getLesson();
-    if (currentAnimationStep >= lesson.steps.length - 1) currentAnimationStep = -1;
-    advanceAnimation();
-    if (currentAnimationStep < lesson.steps.length - 1) {
-      animationTimer = setInterval(advanceAnimation, 2400);
+    if (currentAnimationStep >= lesson.steps.length - 1) currentAnimationStep = 0;
+    if (window.PodVoice && window.PodVoice.supported()) {
+      playingVoice = true;
+      logEvent("play", "播放讲解：《" + lesson.title + "》");
+      playStepVoice();
+    } else {
+      advanceAnimation();
+      if (currentAnimationStep < lesson.steps.length - 1) {
+        animationTimer = setInterval(advanceAnimation, 2400);
+      }
     }
     render();
   });
@@ -650,10 +723,11 @@
       stopSpeech();
       return;
     }
-    if (!("speechSynthesis" in window)) {
+    if (!window.PodVoice || !window.PodVoice.supported()) {
       narrationText.textContent = "当前浏览器不支持语音朗读，可以直接阅读这一段讲解。";
       return;
     }
+    stopAnimation(); // 停掉分步讲解，避免两个声音打架
     const lesson = getLesson();
     const text =
       lesson.title +
@@ -665,17 +739,35 @@
       lesson.example +
       "。易错提醒：" +
       lesson.mistake;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "zh-CN";
-    utterance.rate = 0.92;
-    utterance.onend = stopSpeech;
-    utterance.onerror = stopSpeech;
-    window.speechSynthesis.speak(utterance);
+    window.PodVoice.speak(text, stopSpeech);
     speaking = true;
     speakLesson.textContent = "停止朗读";
     speakLesson.classList.add("active");
   });
+
+  /* ---------- 👩/👨 老师声音切换（存到家庭档案，全站共用） ---------- */
+  (function () {
+    if (!window.PodVoice) return;
+    const actions = document.querySelector(".lesson-actions");
+    if (!actions) return;
+    const btn = document.createElement("button");
+    btn.className = "ghost-button voice-btn";
+    btn.type = "button";
+    function refresh() {
+      btn.textContent = window.PodVoice.pref() === "male" ? "👨 男老师声" : "👩 女老师声";
+    }
+    btn.addEventListener("click", function () {
+      const next = window.PodVoice.pref() === "male" ? "female" : "male";
+      window.PodVoice.setPref(next);
+      refresh();
+      stopSpeech();
+      stopAnimation();
+      window.PodVoice.speak(next === "male" ? "你好呀，我是男老师，接下来由我给你讲课。" : "你好呀，我是女老师，接下来由我给你讲课。");
+      logEvent("voice", "切换为" + (next === "male" ? "男" : "女") + "老师声音");
+    });
+    refresh();
+    actions.insertBefore(btn, actions.firstChild);
+  })();
 
   /* ---------- 标记已学：可切换 ---------- */
 
