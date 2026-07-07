@@ -271,8 +271,8 @@
    * 这里按"自然度"打分挑选：微软 Natural/Neural 在线声(Edge) > Google 普通话 >
    * 系统声(婷婷等) > 兜底默认声。家长/孩子可切换 男老师/女老师。 */
   var VOICE_KEY = "family:voice";
-  var FEMALE_HINTS = ["xiaoxiao", "xiaoyi", "xiaohan", "xiaomo", "xiaoxuan", "xiaorui", "晓", "tingting", "ting-ting", "婷", "meijia", "美嘉", "huihui", "慧", "yaoyao", "瑶", "lili", "female", "女"];
-  var MALE_HINTS = ["yunxi", "云希", "yunjian", "云健", "yunyang", "云扬", "yunye", "云野", "yunhao", "云皓", "kangkang", "康", "binbin", "斌", "male", "男"];
+  var FEMALE_HINTS = ["xiaoxiao", "xiaoyi", "xiaohan", "xiaomo", "xiaoxuan", "xiaorui", "晓", "tingting", "ting-ting", "婷", "meijia", "美嘉", "huihui", "慧", "yaoyao", "瑶", "lili", "yushu", "语舒", "善怡", "sandy", "shelley", "flo", "grandma", "female", "女"];
+  var MALE_HINTS = ["yunxi", "云希", "yunjian", "云健", "yunyang", "云扬", "yunye", "云野", "yunhao", "云皓", "kangkang", "康", "binbin", "斌", "li-mu", "limu", "eddy", "reed", "rocko", "grandpa", "male", "男"];
   function voicePref() {
     try { return localStorage.getItem(VOICE_KEY) || "female"; } catch (e) { return "female"; }
   }
