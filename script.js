@@ -1226,6 +1226,7 @@ markDone.addEventListener("click", () => {
     completedLessons.add(key);
     markActiveToday();
     logEvent("lesson_done", `学完 ${subject.label}《${lesson.title}》`);
+    if (window.PodFX) window.PodFX.burst(60); // 🎉 学完一课，撒点彩带
   }
   saveJSON("completedLessons", [...completedLessons]);
   render();

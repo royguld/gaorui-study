@@ -879,3 +879,118 @@ button {
 /* ===== 讲解图例（AI 生成 SVG，可含动画） ===== */
 .qe-explain-fig { margin-top: 10px; background: #fff; border: 1px solid #e3ecf4; border-radius: 10px; padding: 8px; overflow: hidden; }
 .qe-explain-fig svg { display: block; width: 100%; height: auto; max-height: 420px; }
+
+/* ================================================================
+   🎈 童趣动效包 —— 会呼吸的背景、弹跳卡片、闪烁星星、彩带庆祝
+   ================================================================ */
+
+/* 柔和呼吸的彩色背景 */
+body {
+  background: linear-gradient(120deg, #eef6fb 0%, #fdf6ec 30%, #ecf9f2 60%, #f2effc 85%, #eef6fb 100%);
+  background-size: 320% 320%;
+  animation: bgBreathe 26s ease-in-out infinite;
+}
+@keyframes bgBreathe { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+
+/* 面板依次蹦出来 */
+.panel { animation: panelIn 0.55s cubic-bezier(0.25, 1.4, 0.4, 1) both; }
+.panel:nth-child(1) { animation-delay: 0.04s; }
+.panel:nth-child(2) { animation-delay: 0.12s; }
+.panel:nth-child(3) { animation-delay: 0.2s; }
+.panel:nth-child(4) { animation-delay: 0.28s; }
+.panel:nth-child(5) { animation-delay: 0.36s; }
+@keyframes panelIn { from { opacity: 0; transform: translateY(20px) scale(0.985); } to { opacity: 1; transform: none; } }
+
+/* 校徽方块轻轻摇摆 */
+.brand-mark { animation: brandBob 3.6s ease-in-out infinite; }
+.brand-mark:hover { animation: brandSpin 0.6s cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes brandBob { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-5px) rotate(3deg); } }
+@keyframes brandSpin { from { transform: rotate(-12deg) scale(0.9); } to { transform: rotate(0) scale(1); } }
+
+/* 科目按钮：弹簧手感 */
+.subject-button { transition: transform 0.18s cubic-bezier(0.3, 1.6, 0.5, 1), background 0.18s, color 0.18s; }
+.subject-button:hover { transform: translateX(5px) scale(1.03); }
+.subject-button:active { transform: scale(0.95); }
+
+/* 侧边栏链接跳一下 */
+.sidebar-link { transition: transform 0.18s cubic-bezier(0.3, 1.6, 0.5, 1), background 0.18s, color 0.18s; }
+.sidebar-link:hover { transform: translateX(5px); }
+
+/* 闯关节点：悬浮翘起 + 当前关卡呼吸光环 + 过关星星 */
+.quest-node { position: relative; transition: transform 0.2s cubic-bezier(0.3, 1.6, 0.5, 1), box-shadow 0.2s; }
+.quest-node:hover { transform: translateY(-5px) rotate(-0.6deg) scale(1.02); box-shadow: 0 12px 24px rgba(20, 40, 63, 0.13); }
+.quest-node.active { animation: nodeGlow 2.6s ease-in-out infinite; }
+@keyframes nodeGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(15, 159, 154, 0); } 50% { box-shadow: 0 0 0 6px rgba(15, 159, 154, 0.16); } }
+.quest-node.done::after {
+  content: "⭐"; position: absolute; top: -11px; right: -7px; font-size: 21px;
+  animation: starPop 0.5s cubic-bezier(0.3, 1.8, 0.5, 1) both, starTwinkle 2.4s ease-in-out 0.6s infinite;
+}
+@keyframes starPop { from { transform: scale(0) rotate(-120deg); } to { transform: scale(1) rotate(0); } }
+@keyframes starTwinkle { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2) rotate(10deg); } }
+
+/* 今日建议牌子上下蹦 */
+.today-badge { animation: badgeBob 1.5s ease-in-out infinite; box-shadow: 0 2px 7px rgba(216, 138, 24, 0.3); }
+@keyframes badgeBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+/* 按钮：果冻手感 */
+.primary-button, .ghost-button { transition: transform 0.16s cubic-bezier(0.3, 1.6, 0.5, 1), box-shadow 0.16s, background 0.16s, color 0.16s; }
+.primary-button:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 9px 20px rgba(20, 40, 63, 0.22); }
+.ghost-button:hover { transform: translateY(-2px); }
+.primary-button:active, .ghost-button:active { transform: scale(0.93); }
+
+/* 今日任务：勾选欢呼 */
+.task { transition: transform 0.18s cubic-bezier(0.3, 1.6, 0.5, 1); }
+.task:hover { transform: translateX(4px); }
+.task.done { animation: taskCheer 0.5s cubic-bezier(0.3, 1.8, 0.5, 1); }
+.task.done strong::after { content: " 🎉"; }
+@keyframes taskCheer { 0% { transform: scale(1); } 40% { transform: scale(1.045) rotate(0.6deg); } 100% { transform: scale(1); } }
+
+/* 进度条流光 */
+.progress-fill, .mini-progress > div { position: relative; overflow: hidden; }
+.progress-fill::after, .mini-progress > div::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.55) 50%, transparent 70%);
+  background-size: 220% 100%; animation: shineMove 2.6s linear infinite;
+}
+@keyframes shineMove { from { background-position: 220% 0; } to { background-position: -220% 0; } }
+
+/* 分步讲解：当前步骤呼吸 */
+.concept-step { transition: transform 0.18s; }
+.concept-step:hover { transform: translateY(-2px); }
+.concept-step.current { animation: stepPulse 2s ease-in-out infinite; }
+@keyframes stepPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(15, 159, 154, 0); } 50% { box-shadow: 0 0 0 5px rgba(15, 159, 154, 0.15); } }
+
+/* 关键词飘一下 */
+.term-chip { display: inline-block; transition: transform 0.18s cubic-bezier(0.3, 1.6, 0.5, 1); }
+.term-chip:hover { transform: scale(1.09) rotate(-1.5deg); }
+
+/* 小测判分：答对蹦、答错摇头、反馈滑入 */
+.quiz-question { transition: transform 0.18s; }
+.quiz-question.qe-right, .quiz-question.right { animation: popYes 0.45s cubic-bezier(0.3, 1.6, 0.5, 1); }
+.quiz-question.qe-partial { animation: popYes 0.45s cubic-bezier(0.3, 1.6, 0.5, 1); }
+.quiz-question.qe-wrong, .quiz-question.wrong { animation: shakeNo 0.45s ease; }
+@keyframes popYes { 0% { transform: scale(0.985); } 55% { transform: scale(1.015); } 100% { transform: scale(1); } }
+@keyframes shakeNo { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-3px); } }
+.qe-feedback { animation: fbIn 0.35s ease both; }
+@keyframes fbIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* 作答工具按钮：果冻 */
+.qe-tools button { transition: transform 0.16s cubic-bezier(0.3, 1.6, 0.5, 1), background 0.16s; }
+.qe-tools button:hover { transform: translateY(-2px) scale(1.04); }
+.qe-tools button:active { transform: scale(0.92); }
+
+/* 复核队列条目滑入 */
+.rq-item { animation: fbIn 0.35s ease both; }
+
+/* 🎊 彩带庆祝层（由 PodFX.burst 生成） */
+.fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 999; overflow: hidden; }
+.fx-piece {
+  position: absolute; top: -16px; width: 10px; height: 15px; border-radius: 3px; opacity: 0.95;
+  animation-name: fxFall; animation-timing-function: cubic-bezier(0.2, 0.6, 0.8, 1); animation-fill-mode: both;
+}
+@keyframes fxFall { to { transform: translate3d(var(--dx, 0px), 108vh, 0) rotate(var(--rot, 360deg)); opacity: 0.85; } }
+
+/* 尊重"减少动态效果"系统设置 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

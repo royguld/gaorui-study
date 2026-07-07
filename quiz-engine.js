@@ -266,6 +266,31 @@
     });
   }
 
+  /* ---------- 🎊 彩带庆祝（答满分/掌握考点/完成任务时的欢呼） ---------- */
+  function fxBurst(count) {
+    try {
+      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      var layer = document.createElement("div");
+      layer.className = "fx-layer";
+      var colors = ["#ff6b6b", "#ffd93d", "#6bcb77", "#4d96ff", "#c56cf0", "#ff9f43", "#0f9f9a"];
+      for (var i = 0; i < count; i++) {
+        var p = document.createElement("i");
+        p.className = "fx-piece";
+        p.style.left = (Math.random() * 100) + "vw";
+        p.style.background = colors[i % colors.length];
+        p.style.setProperty("--dx", (Math.random() * 180 - 90).toFixed(0) + "px");
+        p.style.setProperty("--rot", (Math.random() * 900 - 450).toFixed(0) + "deg");
+        p.style.animationDuration = (1.6 + Math.random() * 1.5).toFixed(2) + "s";
+        p.style.animationDelay = (Math.random() * 0.35).toFixed(2) + "s";
+        if (Math.random() < 0.3) { p.style.borderRadius = "50%"; p.style.width = p.style.height = "9px"; }
+        layer.appendChild(p);
+      }
+      document.body.appendChild(layer);
+      setTimeout(function () { try { layer.remove(); } catch (e) { /* 忽略 */ } }, 3800);
+    } catch (e) { /* 庆祝失败不影响功能 */ }
+  }
+  window.PodFX = { burst: fxBurst };
+
   /* ---------- 画板：全页面共享一个弹层，完成后回调图片 dataURL ---------- */
 
   var padEls = null;
@@ -712,9 +737,12 @@
         var used = quotaUsed(c.subjectLabel);
         var pts = le.entry.pointList || [];
         var masteredAll = pts.length && pts.every(function (p) { return (le.entry.points[p.id] || {}).mastered; });
-        setResult("本轮得分 " + score + "/" + round.questions.length + "。" +
-          (masteredAll ? "本课考点全部掌握！" : used >= DAILY_LIMIT ? "今日 " + DAILY_LIMIT + " 题已完成，明天继续。" : "错过的考点下一轮会出新题。"),
-          score === round.questions.length ? "" : "bad");
+        var perfect = score === round.questions.length;
+        setResult((perfect ? "🎉 满分！本轮得分 " : "本轮得分 ") + score + "/" + round.questions.length + "。" +
+          (masteredAll ? "本课考点全部掌握，太棒了！🏆" : used >= DAILY_LIMIT ? "今日 " + DAILY_LIMIT + " 题已完成，明天继续。💪" : "错过的考点下一轮会出新题。"),
+          perfect ? "" : "bad");
+        if (masteredAll || used >= DAILY_LIMIT) fxBurst(150);
+        else if (perfect) fxBurst(80);
         ctx.els.actionBtn.hidden = false;
         ctx.els.actionBtn.textContent = used >= DAILY_LIMIT || masteredAll ? "查看小测状态" : "再来一轮（AI 出新题）";
       }

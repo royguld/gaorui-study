@@ -109,6 +109,68 @@
       .modal .m-msg { margin: 10px 0 0; font-size: 12.5px; min-height: 18px; color: var(--muted); }
       .modal .m-msg.bad { color: #b13c2e; font-weight: 700; }
       .modal .m-msg.ok { color: #1d7a4f; font-weight: 700; }
+
+      /* ================================================
+         🎈 童趣动效包（起始页版）
+         ================================================ */
+      body {
+        background: linear-gradient(120deg, #eef6fb 0%, #fdf6ec 30%, #ecf9f2 60%, #f2effc 85%, #eef6fb 100%);
+        background-size: 320% 320%;
+        animation: bgBreathe 26s ease-in-out infinite;
+        position: relative;
+      }
+      @keyframes bgBreathe { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+      /* 漂浮的彩色泡泡 */
+      body::before, body::after {
+        content: ""; position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(2px); opacity: 0.5;
+      }
+      body::before { width: 190px; height: 190px; left: -60px; top: 16%; background: radial-gradient(circle at 35% 35%, #bfe9e7, transparent 70%); animation: bubbleFloat 11s ease-in-out infinite; }
+      body::after { width: 150px; height: 150px; right: -40px; bottom: 12%; background: radial-gradient(circle at 35% 35%, #ffe4c2, transparent 70%); animation: bubbleFloat 13s ease-in-out 2s infinite; }
+      @keyframes bubbleFloat { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-30px) scale(1.06); } }
+      .board, .gate { position: relative; z-index: 1; }
+
+      /* 孩子卡片：依次蹦出 + 悬浮翘起 + 头像招手 */
+      .child-card { animation: cardIn 0.55s cubic-bezier(0.25, 1.4, 0.4, 1) both; transition: transform 0.2s cubic-bezier(0.3, 1.6, 0.5, 1), box-shadow 0.2s; }
+      .child-card:nth-child(1) { animation-delay: 0.05s; }
+      .child-card:nth-child(2) { animation-delay: 0.14s; }
+      .child-card:nth-child(3) { animation-delay: 0.23s; }
+      .child-card:nth-child(4) { animation-delay: 0.32s; }
+      .child-card:nth-child(5) { animation-delay: 0.41s; }
+      @keyframes cardIn { from { opacity: 0; transform: translateY(24px) scale(0.96); } to { opacity: 1; transform: none; } }
+      .child-card:hover { transform: translateY(-6px) rotate(-0.4deg); box-shadow: 0 16px 30px rgba(20, 40, 63, 0.14); }
+      .cc-avatar { transition: transform 0.25s cubic-bezier(0.3, 1.8, 0.5, 1); }
+      .child-card:hover .cc-avatar { transform: rotate(-10deg) scale(1.12); }
+      .cc-enter { transition: transform 0.16s cubic-bezier(0.3, 1.6, 0.5, 1), box-shadow 0.16s; }
+      .cc-enter:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 8px 18px rgba(20, 40, 63, 0.25); }
+      .cc-enter:active { transform: scale(0.94); }
+      .cc-stats .hot { animation: hotPulse 1.8s ease-in-out infinite; display: inline-block; }
+      @keyframes hotPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+      .cc-bar i { position: relative; overflow: hidden; }
+      .cc-bar i::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.6) 50%, transparent 70%); background-size: 220% 100%; animation: shineMove 2.6s linear infinite; }
+      @keyframes shineMove { from { background-position: 220% 0; } to { background-position: -220% 0; } }
+
+      /* 添加孩子卡片：加号弹跳 */
+      .add-card { transition: transform 0.2s cubic-bezier(0.3, 1.6, 0.5, 1), border-color 0.2s, color 0.2s; }
+      .add-card:hover { transform: translateY(-4px); }
+      .add-card strong { display: block; animation: plusBob 2s ease-in-out infinite; }
+      @keyframes plusBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+      /* 授权门："家"字摇摆欢迎 */
+      .gate-mark { animation: gateWiggle 3s ease-in-out infinite; }
+      @keyframes gateWiggle { 0%, 84%, 100% { transform: rotate(0); } 88% { transform: rotate(-8deg) scale(1.06); } 94% { transform: rotate(7deg); } }
+      .gate-card { animation: cardIn 0.55s cubic-bezier(0.25, 1.4, 0.4, 1) both; }
+      .gate-card button { transition: transform 0.16s cubic-bezier(0.3, 1.6, 0.5, 1); }
+      .gate-card button:hover { transform: translateY(-2px) scale(1.02); }
+      .gate-card button:active { transform: scale(0.94); }
+
+      /* 工具栏按钮：果冻手感 */
+      .actions button, .actions a { transition: transform 0.16s cubic-bezier(0.3, 1.6, 0.5, 1), background 0.16s, border-color 0.16s; }
+      .actions button:hover, .actions a:hover { transform: translateY(-2px); }
+      .actions button:active, .actions a:active { transform: scale(0.93); }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+      }
     </style>
   </head>
   <body>
