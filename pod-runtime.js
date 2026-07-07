@@ -960,7 +960,10 @@
       }).catch(function (e) {
         generating = false;
         vlBtn.disabled = false;
-        messageOnly("生成失败：" + e.message);
+        var msg = /failed to fetch|networkerror|load failed/i.test(String(e.message))
+          ? "连不上 AI 服务器：请检查网络是否正常；如果开着 VPN 或代理，请关掉后点「重新生成」再试。"
+          : "生成失败：" + e.message;
+        messageOnly(msg);
       });
     }
 
