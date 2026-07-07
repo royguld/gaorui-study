@@ -29,12 +29,12 @@
       throw new Error("模型返回的不是合法 JSON");
     }
   }
-  function callModel(apiKey, model, prompt) {
-    return fetch(ENDPOINT, {
+  function callModel(cfg, prompt) {
+    return fetch(cfg.endpoint || ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + cfg.apiKey },
       body: JSON.stringify({
-        model: model || "qwen-plus",
+        model: cfg.model || "qwen-plus",
         temperature: 0.7,
         messages: [
           { role: "system", content: "你是一位耐心的中小学老师，只输出合法 JSON。" },
@@ -68,7 +68,7 @@
     }
     var prompt = "从下面这节课的内容中提炼 5-8 个可考核的考点。课程：" + cfg.subjectLabel + "《" + lesson.title + "》\n课文：\n" +
       lessonText(lesson) + '\n\n只返回 JSON：{"points":[{"id":"p1","label":"考点名称"}]}';
-    return callModel(cfg.apiKey, cfg.model, prompt).then(function (raw) {
+    return callModel(cfg, prompt).then(function (raw) {
       var pts = (raw.points || []).slice(0, 8).map(function (p, i) {
         return { id: String(p.id || "p" + (i + 1)), label: String(p.label || "考点" + (i + 1)) };
       }).filter(function (p) { return p.label; });
@@ -97,7 +97,7 @@
       '{"pointId":"p2","type":"short","question":"题干","refAnswer":"参考答案","explain":"考察点"},' +
       '{"pointId":"p3","type":"think","question":"开放思考题干","refAnswer":"思考要点","explain":"考察点"}]}\n' +
       "要求：每题必须标注真实存在的 pointId；选择题 3-4 个选项、answer 为下标且位置随机分布；题目内容不得与孩子做过的题重复；难度贴合年级；只返回 JSON。";
-    return callModel(cfg.apiKey, cfg.model, prompt).then(function (raw) {
+    return callModel(cfg, prompt).then(function (raw) {
       var valid = [];
       var pidSet = {};
       points.forEach(function (p) { pidSet[p.id] = true; });
@@ -127,7 +127,7 @@
     }).join("\n\n");
     var prompt = "批改下面孩子的答题。宽容对待表述差异，看核心意思是否正确。\n\n" + body +
       '\n\n只返回 JSON：{"grades":[{"i":0,"verdict":"right","comment":"一句话点评"}]}\nverdict 只能是 right / partial / wrong。';
-    return callModel(cfg.apiKey, cfg.model, prompt).then(function (raw) {
+    return callModel(cfg, prompt).then(function (raw) {
       var out = items.map(function () { return { verdict: "wrong", comment: "未获得批改结果" }; });
       (raw.grades || []).forEach(function (g) {
         var i = parseInt(g.i, 10);
@@ -170,8 +170,14 @@
         q[todayKey()] = day;
         ctx.storage.save("quota", q);
       }
+      function getAI() {
+        if (ctx.getAI) return ctx.getAI();
+        var k = ctx.getApiKey ? ctx.getApiKey() : "";
+        return k ? { apiKey: k, model: ctx.model, endpoint: "" } : null;
+      }
       function cfg(c) {
-        return { apiKey: ctx.getApiKey(), model: ctx.model, grade: ctx.grade, subjectLabel: c.subjectLabel };
+        var ai = getAI() || {};
+        return { apiKey: ai.apiKey, model: ai.model || ctx.model, endpoint: ai.endpoint || "", grade: ctx.grade, subjectLabel: c.subjectLabel };
       }
       function statusLine(c, entry) {
         var used = quotaUsed(c.subjectLabel);
@@ -362,7 +368,8 @@
       }
 
       ctx.els.actionBtn.addEventListener("click", function () {
-        if (!ctx.getApiKey()) return; // 无 Key 时由旧版静态小测接管按钮
+        var ai = getAI();
+        if (!ai || !ai.apiKey) return; // 无 Key 时由旧版静态小测接管按钮
         if (busy) return;
         if (!round || round.graded) startRound();
         else submitRound();
@@ -371,7 +378,8 @@
       return {
         // 课程/科目切换时调用；无 Key 返回 false 由运行时走旧静态小测
         refresh: function () {
-          if (!ctx.getApiKey()) return false;
+          var ai = getAI();
+          if (!ai || !ai.apiKey) return false;
           round = null;
           busy = false;
           renderIdle();

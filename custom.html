@@ -130,6 +130,15 @@
           <label>年级<select id="gradeSel"></select></label>
           <button class="btn btn-ghost" id="addPackBtn" type="button">加入该年级教材包</button>
         </div>
+        <div class="curr-row">
+          <label>我的资料包（自己导入的个性化资料，本机保存可反复使用）
+            <select id="myPackSel"><option value="">— 还没有导入 —</option></select>
+          </label>
+          <button class="btn btn-ghost" id="addMyPackBtn" type="button">加入</button>
+          <button class="btn btn-ghost" id="importPackBtn" type="button">导入新资料包</button>
+          <button class="btn btn-ghost" id="delPackBtn" type="button">删除</button>
+          <input type="file" id="packFile" accept=".txt,.md,.json,.csv" hidden />
+        </div>
         <label>补充资料（可选：作业清单、老师要求、错题文字）<textarea id="pMaterials" rows="6" placeholder="选了教材包会自动填在这里，也可以自己补充。"></textarea></label>
       </div>
 
@@ -143,10 +152,22 @@
         </div>
 
         <div class="mode-panel" id="apiPanel">
-          <p class="tip">使用阿里云通义千问 API（<a href="https://bailian.console.aliyun.com/" target="_blank" rel="noopener">百炼控制台</a>免费申请 Key）。有成绩单照片时自动使用视觉模型读取照片。Key 只在本次请求中发给阿里云，不会被本页面保存或上传到其他地方。</p>
+          <p class="tip">大模型任选：推荐通义千问（<a href="https://bailian.console.aliyun.com/" target="_blank" rel="noopener">百炼控制台</a>免费申请 Key，已验证支持网页直连）。其他供应商如提示"无法连接"，说明该接口不允许浏览器直接调用，请换回通义。Key 只在请求时发给所选供应商，不会上传到其他地方。</p>
           <div class="two">
-            <label>通义千问 API Key<input type="text" id="apiKey" placeholder="sk-..." autocomplete="off" /></label>
-            <label>模型名（可改）<input type="text" id="modelName" placeholder="自动：有照片用 qwen-vl-plus，无照片用 qwen-plus" /></label>
+            <label>模型供应商
+              <select id="providerSel">
+                <option value="qwen" selected>通义千问（推荐，已验证）</option>
+                <option value="deepseek">DeepSeek</option>
+                <option value="kimi">Kimi / Moonshot</option>
+                <option value="doubao">豆包 / 火山方舟</option>
+                <option value="custom">自定义（OpenAI 兼容接口）</option>
+              </select>
+            </label>
+            <label>接口地址 Endpoint<input type="text" id="endpointInput" autocomplete="off" /></label>
+          </div>
+          <div class="two">
+            <label>API Key<input type="text" id="apiKey" placeholder="sk-..." autocomplete="off" /></label>
+            <label>模型名（可改）<input type="text" id="modelName" placeholder="留空用该供应商默认模型" /></label>
           </div>
           <button class="btn btn-teal" id="genBtn" type="button">分析孩子情况并生成学习舱</button>
         </div>
@@ -184,6 +205,27 @@
         var packs = {};
         var podAssets = null;
         var latestUrl = "";
+
+        /* ---------- 模型供应商预设 ---------- */
+        var PROVIDERS = {
+          qwen: { endpoint: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", model: "qwen-plus", vision: "qwen-vl-plus" },
+          deepseek: { endpoint: "https://api.deepseek.com/v1/chat/completions", model: "deepseek-chat", vision: "" },
+          kimi: { endpoint: "https://api.moonshot.cn/v1/chat/completions", model: "moonshot-v1-32k", vision: "" },
+          doubao: { endpoint: "https://ark.cn-beijing.volces.com/api/v3/chat/completions", model: "doubao-seed-1-6-250615", vision: "doubao-seed-1-6-250615" },
+          custom: { endpoint: "", model: "", vision: "" },
+        };
+        function currentAI() {
+          var p = PROVIDERS[$("providerSel").value] || PROVIDERS.qwen;
+          var endpoint = $("endpointInput").value.trim() || p.endpoint;
+          var model = $("modelName").value.trim() || (photos.length && p.vision ? p.vision : p.model);
+          return { endpoint: endpoint, model: model, apiKey: $("apiKey").value.trim(), provider: $("providerSel").value };
+        }
+        $("providerSel").addEventListener("change", function () {
+          var p = PROVIDERS[$("providerSel").value] || PROVIDERS.custom;
+          $("endpointInput").value = p.endpoint;
+          $("modelName").placeholder = p.model ? "留空默认 " + p.model : "必填模型名";
+        });
+        $("endpointInput").value = PROVIDERS.qwen.endpoint;
 
         function setStatus(text, cls) {
           statusEl.textContent = text;
@@ -275,6 +317,53 @@
           setStatus("已加入 " + gradeKey + " 教材包。", "ok");
         });
         loadPacks();
+
+        /* ---------- 我的资料包（用户自己导入，本机保存） ---------- */
+        function myPacks() {
+          try { return JSON.parse(localStorage.getItem("family:packs") || "[]"); } catch (e) { return []; }
+        }
+        function saveMyPacks(list) {
+          try { localStorage.setItem("family:packs", JSON.stringify(list)); return true; }
+          catch (e) { setStatus("保存失败：浏览器存储空间不足，请删除旧资料包。", "bad"); return false; }
+        }
+        function renderMyPacks() {
+          var list = myPacks();
+          $("myPackSel").innerHTML = list.length
+            ? list.map(function (p, i) { return '<option value="' + i + '">' + esc(p.name) + "（" + Math.round(p.text.length / 1000) + " 千字）</option>"; }).join("")
+            : '<option value="">— 还没有导入 —</option>';
+        }
+        $("importPackBtn").addEventListener("click", function () { $("packFile").click(); });
+        $("packFile").addEventListener("change", function () {
+          var file = $("packFile").files[0];
+          if (!file) return;
+          if (file.size > 2 * 1024 * 1024) { setStatus("资料包文件请控制在 2MB 以内（纯文本）。", "bad"); $("packFile").value = ""; return; }
+          var reader = new FileReader();
+          reader.onload = function () {
+            var name = prompt("给这个资料包起个名字：", file.name.replace(/\.[^.]+$/, "")) || file.name;
+            var list = myPacks();
+            list.push({ name: name.trim(), text: String(reader.result).slice(0, 200000), ts: Date.now() });
+            if (saveMyPacks(list)) { renderMyPacks(); $("myPackSel").value = String(list.length - 1); setStatus("资料包「" + name + "」已导入并保存在本机，选中后点\"加入\"即可使用。", "ok"); }
+            $("packFile").value = "";
+          };
+          reader.readAsText(file);
+        });
+        $("addMyPackBtn").addEventListener("click", function () {
+          var list = myPacks();
+          var p = list[Number($("myPackSel").value)];
+          if (!p) { setStatus("请先导入并选择一个资料包。", "bad"); return; }
+          $("pMaterials").value += ($("pMaterials").value ? "\n\n" : "") + "===== 我的资料包：" + p.name + " =====\n" + p.text;
+          $("pMaterials").dispatchEvent(new Event("input"));
+          setStatus("已加入资料包「" + p.name + "」。", "ok");
+        });
+        $("delPackBtn").addEventListener("click", function () {
+          var list = myPacks();
+          var i = Number($("myPackSel").value);
+          if (!list[i]) { setStatus("请先选择要删除的资料包。", "bad"); return; }
+          if (!confirm("删除资料包「" + list[i].name + "」？")) return;
+          list.splice(i, 1);
+          if (saveMyPacks(list)) { renderMyPacks(); setStatus("已删除。", "ok"); }
+        });
+        renderMyPacks();
 
         /* ---------- 校验与提示词 ---------- */
         function getProfile() {
@@ -447,11 +536,16 @@
             $("saveStatus").className = "status bad";
             return;
           }
-          // 把 API Key 存进孩子档案（学习舱每天 AI 出题要用），同时存一份设备级 Key
-          var key = $("apiKey").value.trim();
-          if (key) {
-            lastData.apiKey = key;
-            try { localStorage.setItem("family:apiKey", key); } catch (e) { /* 忽略 */ }
+          // 把 AI 配置（供应商接口+模型+Key）存进孩子档案与本设备，学习舱每天 AI 出题要用
+          var ai = currentAI();
+          if (ai.apiKey) {
+            var aiCfg = { endpoint: ai.endpoint, model: $("modelName").value.trim() || (PROVIDERS[ai.provider] || {}).model || "qwen-plus", apiKey: ai.apiKey };
+            lastData.ai = aiCfg;
+            lastData.apiKey = ai.apiKey; // 兼容旧版
+            try {
+              localStorage.setItem("family:aiConfig", JSON.stringify(aiCfg));
+              localStorage.setItem("family:apiKey", ai.apiKey);
+            } catch (e) { /* 忽略 */ }
           }
           if (!kids.some(function (c) { return c.podId === lastData.podId; })) {
             kids.push(lastData);
@@ -486,9 +580,15 @@
           var p = getProfile();
           var err = validate(p);
           if (err) { setStatus(err, "bad"); return; }
-          var key = $("apiKey").value.trim();
-          if (!key) { setStatus("请填写通义千问 API Key，或切换到方式二。", "bad"); return; }
-          var model = $("modelName").value.trim() || (photos.length ? "qwen-vl-plus" : "qwen-plus");
+          var ai = currentAI();
+          if (!ai.apiKey) { setStatus("请填写所选供应商的 API Key，或切换到方式二。", "bad"); return; }
+          if (!ai.endpoint) { setStatus("自定义供应商需要填写接口地址。", "bad"); return; }
+          if (!ai.model) { setStatus("自定义供应商需要填写模型名。", "bad"); return; }
+          if (photos.length && !PROVIDERS[ai.provider].vision && !$("modelName").value.trim()) {
+            setStatus("该供应商默认模型不支持读取照片，请删除照片、改用通义、或手动填写支持视觉的模型名。", "bad");
+            return;
+          }
+          var model = ai.model;
           var content;
           if (photos.length) {
             content = [{ type: "text", text: buildPrompt(p) }].concat(photos.map(function (d) { return { type: "image_url", image_url: { url: d } }; }));
@@ -497,9 +597,9 @@
           }
           $("genBtn").disabled = true;
           setStatus("正在调用 " + model + " 分析孩子情况并生成课程（约 30-90 秒）...");
-          fetch("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", {
+          fetch(ai.endpoint, {
             method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + ai.apiKey },
             body: JSON.stringify({ model: model, temperature: 0.4, messages: [
               { role: "system", content: "你只输出合法 JSON。" },
               { role: "user", content: content },

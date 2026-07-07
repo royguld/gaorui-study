@@ -1249,8 +1249,14 @@ if (window.QuizEngine) {
       load: (k, fb) => loadJSON("grx:" + k, fb),
       save: (k, v) => saveJSON("grx:" + k, v),
     },
-    getApiKey: () => {
-      try { return localStorage.getItem("family:apiKey") || ""; } catch (e) { return ""; }
+    getAI: () => {
+      try {
+        const c = JSON.parse(localStorage.getItem("family:aiConfig") || "null");
+        if (c && c.apiKey) return { apiKey: c.apiKey, model: c.model || "qwen-plus", endpoint: c.endpoint || "" };
+        const k = localStorage.getItem("family:apiKey");
+        if (k) return { apiKey: k, model: "qwen-plus", endpoint: "" };
+      } catch (e) { /* 忽略 */ }
+      return null;
     },
     model: "qwen-plus",
     grade: "初二升初三",

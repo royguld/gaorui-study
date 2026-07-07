@@ -702,9 +702,18 @@
     quizEngine = window.QuizEngine.mount({
       els: { box: quizBox, actionBtn: submitQuiz, result: quizResult },
       storage: { load: loadJSON, save: saveJSON },
-      getApiKey: function () {
-        if (learningData.apiKey) return learningData.apiKey;
-        try { return localStorage.getItem("family:apiKey") || ""; } catch (e) { return ""; }
+      getAI: function () {
+        if (learningData.ai && learningData.ai.apiKey) {
+          return { apiKey: learningData.ai.apiKey, model: learningData.ai.model || "qwen-plus", endpoint: learningData.ai.endpoint || "" };
+        }
+        if (learningData.apiKey) return { apiKey: learningData.apiKey, model: learningData.model || "qwen-plus", endpoint: "" };
+        try {
+          const c = JSON.parse(localStorage.getItem("family:aiConfig") || "null");
+          if (c && c.apiKey) return { apiKey: c.apiKey, model: c.model || "qwen-plus", endpoint: c.endpoint || "" };
+          const k = localStorage.getItem("family:apiKey");
+          if (k) return { apiKey: k, model: "qwen-plus", endpoint: "" };
+        } catch (e) { /* 忽略 */ }
+        return null;
       },
       model: learningData.model || "qwen-plus",
       grade: student.grade || "",

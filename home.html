@@ -301,22 +301,54 @@
           location.reload();
         });
 
-        /* ---------- AI Key 设置（AI 每日出题用，本机所有孩子共用） ---------- */
+        /* ---------- AI 设置（供应商任选，AI 每日出题用，本机所有孩子共用） ---------- */
+        var AI_PRESETS = [
+          ["通义千问（推荐，已验证网页直连）", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", "qwen-plus"],
+          ["DeepSeek", "https://api.deepseek.com/v1/chat/completions", "deepseek-chat"],
+          ["Kimi / Moonshot", "https://api.moonshot.cn/v1/chat/completions", "moonshot-v1-32k"],
+          ["豆包 / 火山方舟", "https://ark.cn-beijing.volces.com/api/v3/chat/completions", "doubao-seed-1-6-250615"],
+        ];
         $("aiKeyBtn").addEventListener("click", function () {
-          var cur = "";
-          try { cur = localStorage.getItem("family:apiKey") || ""; } catch (e) { /* 忽略 */ }
-          var masked = cur ? "当前已设置（" + cur.slice(0, 6) + "***" + cur.slice(-4) + "）\n" : "当前未设置。\n";
-          var input = prompt(masked + "输入通义千问 API Key（学习舱每天 AI 出新题用，只存在本设备）。\n留空并确定 = 清除 Key：", "");
-          if (input === null) return;
-          var key = input.trim();
+          var cur = null;
+          try { cur = JSON.parse(localStorage.getItem("family:aiConfig") || "null"); } catch (e) { /* 忽略 */ }
+          var curTxt = cur && cur.apiKey
+            ? "当前：" + (cur.endpoint || "").split("/")[2] + " · " + (cur.model || "") + " · Key " + cur.apiKey.slice(0, 6) + "***"
+            : "当前未设置。";
+          var menu = AI_PRESETS.map(function (p, i) { return (i + 1) + " = " + p[0]; }).join("\n") + "\n5 = 自定义接口地址\n0 = 清除设置";
+          var sel = prompt(curTxt + "\n\n选择模型供应商（输入数字）：\n" + menu, "1");
+          if (sel === null) return;
+          sel = sel.trim();
+          if (sel === "0") {
+            localStorage.removeItem("family:aiConfig");
+            localStorage.removeItem("family:apiKey");
+            var kids0 = loadJSON("family:children", []);
+            kids0.forEach(function (c) { delete c.ai; delete c.apiKey; });
+            saveJSON("family:children", kids0);
+            alert("已清除，学习舱回退为基础题模式。");
+            return;
+          }
+          var endpoint, defModel;
+          if (sel === "5") {
+            endpoint = (prompt("输入 OpenAI 兼容接口地址（https://... /chat/completions）：", "") || "").trim();
+            if (!endpoint) return;
+            defModel = "";
+          } else {
+            var p = AI_PRESETS[Number(sel) - 1];
+            if (!p) { alert("无效选择。"); return; }
+            endpoint = p[1]; defModel = p[2];
+          }
+          var model = (prompt("模型名（留空用默认 " + (defModel || "，自定义接口必填") + "）：", defModel) || "").trim();
+          if (!model) { alert("需要模型名。"); return; }
+          var key = (prompt("输入该供应商的 API Key：", "") || "").trim();
+          if (!key) return;
           try {
-            if (key) localStorage.setItem("family:apiKey", key);
-            else localStorage.removeItem("family:apiKey");
-            // 同步到所有孩子档案
+            var cfgObj = { endpoint: endpoint, model: model, apiKey: key };
+            localStorage.setItem("family:aiConfig", JSON.stringify(cfgObj));
+            localStorage.setItem("family:apiKey", key);
             var kids = loadJSON("family:children", []);
-            kids.forEach(function (c) { if (key) c.apiKey = key; else delete c.apiKey; });
+            kids.forEach(function (c) { c.ai = cfgObj; c.apiKey = key; });
             saveJSON("family:children", kids);
-            alert(key ? "已保存，本设备所有孩子的学习舱都可以 AI 出题了。" : "已清除 Key，学习舱将回退为基础题模式。");
+            alert("已保存：" + endpoint.split("/")[2] + " · " + model + "。本设备所有孩子的学习舱都会使用该模型出题。提示：通义已验证支持网页直连，其他供应商若报\"无法连接\"请换回通义。");
           } catch (e) { alert("保存失败：" + e.message); }
         });
 
