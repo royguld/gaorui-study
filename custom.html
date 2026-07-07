@@ -131,14 +131,15 @@
           <button class="btn btn-ghost" id="addPackBtn" type="button">加入该年级教材包</button>
         </div>
         <div class="curr-row">
-          <label>我的资料包（自己导入的个性化资料，本机保存可反复使用）
+          <label>我的资料包（支持 PDF / Word / Excel / PPT / 图片照片 / 压缩包，最大 100MB，本机解析保存）
             <select id="myPackSel"><option value="">— 还没有导入 —</option></select>
           </label>
           <button class="btn btn-ghost" id="addMyPackBtn" type="button">加入</button>
           <button class="btn btn-ghost" id="importPackBtn" type="button">导入新资料包</button>
           <button class="btn btn-ghost" id="delPackBtn" type="button">删除</button>
-          <input type="file" id="packFile" accept=".txt,.md,.json,.csv" hidden />
+          <input type="file" id="packFile" accept=".txt,.md,.json,.csv,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.zip,.png,.jpg,.jpeg,.webp,.gif,.bmp" hidden />
         </div>
+        <p class="hint" id="packHint">图片/照片和扫描件 PDF 需要已填视觉模型的 API Key（推荐通义）才能识别文字；老格式 .doc/.ppt 建议另存为 .docx/.pptx 再导入。</p>
         <label>补充资料（可选：作业清单、老师要求、错题文字）<textarea id="pMaterials" rows="6" placeholder="选了教材包会自动填在这里，也可以自己补充。"></textarea></label>
       </div>
 
@@ -332,20 +333,183 @@
             ? list.map(function (p, i) { return '<option value="' + i + '">' + esc(p.name) + "（" + Math.round(p.text.length / 1000) + " 千字）</option>"; }).join("")
             : '<option value="">— 还没有导入 —</option>';
         }
+        /* ---- 多格式解析器：PDF/Word/Excel/PPT/图片/压缩包 → 文本 ---- */
+        var LIBS = {
+          jszip: { url: "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js", g: "JSZip" },
+          pdfjs: { url: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js", g: "pdfjsLib" },
+          mammoth: { url: "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js", g: "mammoth" },
+          xlsx: { url: "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js", g: "XLSX" },
+        };
+        var PDF_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        function loadLib(name) {
+          if (window[LIBS[name].g]) return Promise.resolve();
+          return new Promise(function (resolve, reject) {
+            var s = document.createElement("script");
+            s.src = LIBS[name].url;
+            s.onload = resolve;
+            s.onerror = function () { reject(new Error("解析组件(" + name + ")加载失败，请检查网络后重试")); };
+            document.head.appendChild(s);
+          });
+        }
+        function extOf(n) { return (String(n).split(".").pop() || "").toLowerCase(); }
+
+        async function parsePdf(name, buf, out) {
+          await loadLib("pdfjs");
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER;
+          var pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+          var pages = Math.min(pdf.numPages, 120);
+          var texts = [];
+          for (var i = 1; i <= pages; i++) {
+            setStatus("正在解析 " + name + " 第 " + i + "/" + pages + " 页...");
+            var tc = await (await pdf.getPage(i)).getTextContent();
+            texts.push(tc.items.map(function (it) { return it.str; }).join(" "));
+          }
+          var t = texts.join("\n");
+          if (t.replace(/\s/g, "").length < 30) out.skipped.push(name + "（PDF 无可提取文字，可能是扫描件；请把关键页截图成图片导入，走图像识别）");
+          else out.parts.push({ name: name + (pdf.numPages > pages ? "（前" + pages + "页）" : ""), text: t });
+        }
+        async function parsePptx(name, buf, out) {
+          await loadLib("jszip");
+          var zip = await window.JSZip.loadAsync(buf);
+          var slides = Object.keys(zip.files).filter(function (k) { return /^ppt\/slides\/slide\d+\.xml$/.test(k); })
+            .sort(function (a, b) { return parseInt(a.match(/\d+/)[0], 10) - parseInt(b.match(/\d+/)[0], 10); });
+          var texts = [];
+          for (var i = 0; i < slides.length; i++) {
+            var xml = await zip.files[slides[i]].async("string");
+            var m, seg = [];
+            var re = /<a:t[^>]*>([^<]*)<\/a:t>/g;
+            while ((m = re.exec(xml))) seg.push(m[1]);
+            if (seg.length) texts.push("【第 " + (i + 1) + " 页】" + seg.join(" "));
+          }
+          if (!texts.length) out.skipped.push(name + "（PPT 内没有可提取文字）");
+          else out.parts.push({ name: name, text: texts.join("\n") });
+        }
+        async function parseEntry(name, buf, out, depth) {
+          var ext = extOf(name);
+          try {
+            if (["txt", "md", "csv", "json"].indexOf(ext) >= 0) {
+              out.parts.push({ name: name, text: new TextDecoder("utf-8").decode(buf) });
+            } else if (ext === "pdf") {
+              await parsePdf(name, buf, out);
+            } else if (ext === "docx") {
+              await loadLib("mammoth");
+              var r = await window.mammoth.extractRawText({ arrayBuffer: buf });
+              out.parts.push({ name: name, text: r.value });
+            } else if (ext === "xlsx" || ext === "xls") {
+              await loadLib("xlsx");
+              var wb = window.XLSX.read(new Uint8Array(buf), { type: "array" });
+              var texts = wb.SheetNames.slice(0, 10).map(function (sn) {
+                return "【工作表 " + sn + "】\n" + window.XLSX.utils.sheet_to_csv(wb.Sheets[sn]).slice(0, 30000);
+              });
+              out.parts.push({ name: name, text: texts.join("\n") });
+            } else if (ext === "pptx") {
+              await parsePptx(name, buf, out);
+            } else if (ext === "zip") {
+              if (depth >= 1) { out.skipped.push(name + "（不支持压缩包套压缩包）"); return; }
+              await loadLib("jszip");
+              var zip = await window.JSZip.loadAsync(buf);
+              var entries = Object.keys(zip.files).filter(function (k) {
+                return !zip.files[k].dir && k.indexOf("__MACOSX") !== 0 && k.split("/").pop().indexOf(".") !== 0;
+              }).slice(0, 100);
+              for (var i = 0; i < entries.length; i++) {
+                setStatus("正在解析压缩包内文件 " + (i + 1) + "/" + entries.length + "：" + entries[i]);
+                await parseEntry(entries[i], await zip.files[entries[i]].async("arraybuffer"), out, depth + 1);
+              }
+            } else if (["png", "jpg", "jpeg", "webp", "gif", "bmp"].indexOf(ext) >= 0) {
+              if (out.imageBufs.length >= 20) out.skipped.push(name + "（图片超过 20 张上限）");
+              else out.imageBufs.push({ name: name, buf: buf, ext: ext });
+            } else if (ext === "doc" || ext === "ppt") {
+              out.skipped.push(name + "（老格式，请用 WPS/Office 另存为 ." + ext + "x 后再导入）");
+            } else {
+              out.skipped.push(name + "（不支持的格式）");
+            }
+          } catch (e) {
+            out.skipped.push(name + "（解析失败：" + e.message + "）");
+          }
+        }
+        function bufToDataUrl(entry) {
+          return new Promise(function (resolve, reject) {
+            var blob = new Blob([entry.buf]);
+            var img = new Image();
+            var url = URL.createObjectURL(blob);
+            img.onload = function () {
+              var max = 1280;
+              var scale = Math.min(1, max / Math.max(img.width, img.height));
+              var canvas = document.createElement("canvas");
+              canvas.width = Math.round(img.width * scale);
+              canvas.height = Math.round(img.height * scale);
+              canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+              URL.revokeObjectURL(url);
+              resolve(canvas.toDataURL("image/jpeg", 0.82));
+            };
+            img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("图片无法解码")); };
+            img.src = url;
+          });
+        }
+        async function ocrImages(out) {
+          if (!out.imageBufs.length) return;
+          var ai = currentAI();
+          var vision = $("modelName").value.trim() || (PROVIDERS[ai.provider] || {}).vision;
+          if (!ai.apiKey || !vision) {
+            out.skipped.push(out.imageBufs.length + " 张图片（识别图片文字需要在上方 Step 03 填好支持视觉的模型和 API Key，推荐通义）");
+            return;
+          }
+          for (var i = 0; i < out.imageBufs.length; i += 4) {
+            var batch = out.imageBufs.slice(i, i + 4);
+            setStatus("正在用 AI 识别图片文字 " + Math.min(i + 4, out.imageBufs.length) + "/" + out.imageBufs.length + "（每批约 20-40 秒）...");
+            try {
+              var urls = [];
+              for (var j = 0; j < batch.length; j++) urls.push(await bufToDataUrl(batch[j]));
+              var content = [{ type: "text", text: "把这些图片中的全部文字和关键内容完整整理为文本，保留题号和结构，按图片顺序输出，每张图片以【图片N】开头。" }]
+                .concat(urls.map(function (u) { return { type: "image_url", image_url: { url: u } }; }));
+              var resp = await fetch(ai.endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: "Bearer " + ai.apiKey },
+                body: JSON.stringify({ model: vision, messages: [{ role: "user", content: content }] }),
+              });
+              var data = await resp.json();
+              if (!resp.ok) throw new Error((data.error && data.error.message) || "接口 " + resp.status);
+              out.parts.push({ name: batch.map(function (b) { return b.name; }).join("、"), text: data.choices[0].message.content });
+            } catch (e) {
+              out.skipped.push(batch.map(function (b) { return b.name; }).join("、") + "（图片识别失败：" + e.message + "）");
+            }
+          }
+        }
+
         $("importPackBtn").addEventListener("click", function () { $("packFile").click(); });
-        $("packFile").addEventListener("change", function () {
+        $("packFile").addEventListener("change", async function () {
           var file = $("packFile").files[0];
+          $("packFile").value = "";
           if (!file) return;
-          if (file.size > 2 * 1024 * 1024) { setStatus("资料包文件请控制在 2MB 以内（纯文本）。", "bad"); $("packFile").value = ""; return; }
-          var reader = new FileReader();
-          reader.onload = function () {
-            var name = prompt("给这个资料包起个名字：", file.name.replace(/\.[^.]+$/, "")) || file.name;
+          if (file.size > 100 * 1024 * 1024) { setStatus("文件超过 100MB 上限。", "bad"); return; }
+          $("importPackBtn").disabled = true;
+          setStatus("正在读取 " + file.name + "（" + Math.round(file.size / 1024 / 1024) + "MB）...");
+          try {
+            var out = { parts: [], skipped: [], imageBufs: [] };
+            await parseEntry(file.name, await file.arrayBuffer(), out, 0);
+            await ocrImages(out);
+            if (!out.parts.length) {
+              setStatus("没有解析出任何文字。" + (out.skipped.length ? "跳过：" + out.skipped.join("；") : ""), "bad");
+              return;
+            }
+            var full = out.parts.map(function (p) { return "===== " + p.name + " =====\n" + p.text.trim(); }).join("\n\n");
+            var truncated = full.length > 200000;
+            var name = prompt("解析完成（共 " + out.parts.length + " 个文件、约 " + Math.round(full.length / 1000) + " 千字）。给这个资料包起个名字：",
+              file.name.replace(/\.[^.]+$/, "")) || file.name;
             var list = myPacks();
-            list.push({ name: name.trim(), text: String(reader.result).slice(0, 200000), ts: Date.now() });
-            if (saveMyPacks(list)) { renderMyPacks(); $("myPackSel").value = String(list.length - 1); setStatus("资料包「" + name + "」已导入并保存在本机，选中后点\"加入\"即可使用。", "ok"); }
-            $("packFile").value = "";
-          };
-          reader.readAsText(file);
+            list.push({ name: name.trim(), text: full.slice(0, 200000), ts: Date.now() });
+            if (saveMyPacks(list)) {
+              renderMyPacks();
+              $("myPackSel").value = String(list.length - 1);
+              setStatus("资料包「" + name + "」已导入。" +
+                (truncated ? "内容较多已保留前 20 万字。" : "") +
+                (out.skipped.length ? "跳过 " + out.skipped.length + " 项：" + out.skipped.slice(0, 3).join("；") + (out.skipped.length > 3 ? " 等" : "") : ""), "ok");
+            }
+          } catch (e) {
+            setStatus("导入失败：" + e.message, "bad");
+          } finally {
+            $("importPackBtn").disabled = false;
+          }
         });
         $("addMyPackBtn").addEventListener("click", function () {
           var list = myPacks();
