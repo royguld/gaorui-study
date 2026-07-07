@@ -43,10 +43,28 @@
       }),
     }).then(function (r) {
       return r.json().then(function (d) {
-        if (!r.ok) throw new Error((d.error && d.error.message) || "接口返回 " + r.status);
+        if (!r.ok) throw new Error(friendlyError((d.error && d.error.message) || "接口返回 " + r.status, r.status));
         return extractJson(d.choices[0].message.content);
       });
     });
+  }
+
+  /* 把供应商的英文报错翻译成家长能看懂的提示 */
+  function friendlyError(msg, status) {
+    var m = String(msg);
+    if (/insufficient balance|suspended|recharge|arrears|欠费|余额不足/i.test(m)) {
+      return "AI 账号余额不足，供应商已暂停服务。请到该供应商控制台充值，或在起始页“AI 设置”里换成有额度的供应商（通义千问新用户有免费额度）。";
+    }
+    if (/incorrect api key|invalid api[- ]?key|authentication|api key/i.test(m) || status === 401) {
+      return "API Key 不正确或已失效，请到起始页“AI 设置”重新粘贴 Key。";
+    }
+    if (/rate limit|too many requests/i.test(m) || status === 429) {
+      return "调用太频繁，休息一两分钟再试。";
+    }
+    if (/model.*(not exist|not found|invalid)/i.test(m)) {
+      return "模型名不存在，请到起始页“AI 设置”检查模型名是否拼写正确。";
+    }
+    return m;
   }
 
   function lessonText(lesson) {
