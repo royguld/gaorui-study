@@ -662,51 +662,105 @@
           if (!SR) { btn.hidden = true; return; }
           var qi = Number(btn.dataset.q);
           var ta = box.querySelector('textarea[data-a="' + qi + '"]');
-          var rec = null, finalTxt = "";
+          var rec = null, finalTxt = "", interimTxt = "", base = "", endGuard = null;
+          function resetBtn() {
+            btn.classList.remove("rec");
+            btn.textContent = "🎤 按住说话";
+          }
+          function liveUpdate() {
+            // 边说边把字实时打进答题框，不用等松开
+            var t = (finalTxt + interimTxt).trim();
+            if (t) ta.value = (base ? base + " " : "") + t;
+          }
           function start(e) {
             e.preventDefault();
             if (rec || round.graded) return;
             finalTxt = "";
+            interimTxt = "";
+            base = ta.value.trim();
             rec = new SR();
             rec.lang = "zh-CN";
             rec.continuous = true;
             rec.interimResults = true;
+            /* 立即给出反馈，连接语音服务的等待过程可见 */
+            btn.classList.add("rec");
+            btn.textContent = "🎙 连接中...请按住";
+            toolMsg(qi, "正在连接语音服务...");
+            rec.onaudiostart = function () {
+              if (!rec) return;
+              btn.textContent = "🔴 正在听...松开结束";
+              toolMsg(qi, "正在听你说话，说的字会直接出现在答题框里。");
+            };
             rec.onresult = function (ev) {
+              interimTxt = "";
               for (var i = ev.resultIndex; i < ev.results.length; i++) {
                 if (ev.results[i].isFinal) finalTxt += ev.results[i][0].transcript;
+                else interimTxt += ev.results[i][0].transcript;
               }
+              liveUpdate();
             };
             rec.onerror = function (ev) {
               if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
-                toolMsg(qi, "麦克风没有授权，请在浏览器地址栏允许使用麦克风。", true);
+                toolMsg(qi, "麦克风没有授权：点地址栏左边的图标允许使用麦克风。", true);
+              } else if (ev.error === "network") {
+                toolMsg(qi, "语音服务连不上（Chrome 的语音走谷歌服务器，国内可能不稳，建议用 Edge 浏览器）。", true);
               }
             };
             rec.onend = function () {
+              if (endGuard) { clearTimeout(endGuard); endGuard = null; }
               rec = null;
-              btn.classList.remove("rec");
-              btn.textContent = "🎤 按住说话";
-              var raw = finalTxt.trim();
-              if (!raw) { toolMsg(qi, "没有听清，请按住按钮后大声说。", true); return; }
-              toolMsg(qi, "听到了，AI 正在把你的话整理成答案...");
+              resetBtn();
+              var raw = finalTxt.trim() || interimTxt.trim();
+              if (!raw) {
+                ta.value = base;
+                toolMsg(qi, "没有听清，请按住按钮后再大声说一次。", true);
+                return;
+              }
+              /* 原话已经在框里、立即可用；AI 润色放到后台，好了再悄悄替换 */
+              ta.value = (base ? base + " " : "") + raw;
+              toolMsg(qi, "已填入！AI 正在后台帮你把口语整理通顺...");
               var q = round.questions[qi];
               var prompt =
                 "孩子在回答题目「" + q.question.slice(0, 120) + "」，下面是语音转文字的口述内容（可能有同音字错误和口语词）：\n" + raw +
                 "\n请整理成书面答案：纠正同音字、去掉口语词，保留孩子原本的意思，绝对不要补充孩子没有表达的内容。只返回整理后的答案本身。";
               callModelText(cfg(ctx.getContext()), prompt).then(function (txt) {
                 if (!txt) throw new Error("空");
-                ta.value = (ta.value.trim() ? ta.value.trim() + " " : "") + txt;
-                toolMsg(qi, "已整理填入，你可以再修改，或继续按住说话补充。");
+                /* 只在孩子还没改动这段原话时才替换，避免覆盖手动修改 */
+                if (ta.value.indexOf(raw) >= 0) {
+                  ta.value = ta.value.replace(raw, txt.trim());
+                  toolMsg(qi, "AI 已整理通顺，可以再修改或继续按住补充。");
+                } else {
+                  toolMsg(qi, "你已经在修改答案了，AI 就不打扰啦。");
+                }
               }).catch(function () {
-                ta.value = (ta.value.trim() ? ta.value.trim() + " " : "") + raw;
-                toolMsg(qi, "已按原话填入（AI 整理暂时不可用）。");
+                toolMsg(qi, "已按原话填入（AI 润色暂时不可用，不影响提交）。");
               });
             };
-            try { rec.start(); } catch (err) { rec = null; return; }
-            btn.classList.add("rec");
-            btn.textContent = "🔴 正在听...松开结束";
-            toolMsg(qi, "正在听你说话...");
+            try { rec.start(); } catch (err) { rec = null; resetBtn(); return; }
           }
-          function stop() { if (rec) { try { rec.stop(); } catch (e) { /* 忽略 */ } } }
+          function stop() {
+            if (!rec) return;
+            btn.textContent = "⏳ 识别收尾...";
+            try { rec.stop(); } catch (e) { /* 忽略 */ }
+            /* 兜底：识别服务 4 秒不收尾就强制结束，不让孩子干等 */
+            if (endGuard) clearTimeout(endGuard);
+            endGuard = setTimeout(function () {
+              endGuard = null;
+              if (!rec) return;
+              var r = rec;
+              try { r.onend = null; r.abort && r.abort(); } catch (e) { /* 忽略 */ }
+              rec = null;
+              resetBtn();
+              var raw = (finalTxt + interimTxt).trim();
+              if (raw) {
+                ta.value = (base ? base + " " : "") + raw;
+                toolMsg(qi, "已按听到的内容填入，可以直接修改。");
+              } else {
+                ta.value = base;
+                toolMsg(qi, "语音服务响应太慢，这次没有听清；也可以直接打字或画图作答。", true);
+              }
+            }, 4000);
+          }
           btn.addEventListener("pointerdown", start);
           btn.addEventListener("pointerup", stop);
           btn.addEventListener("pointerleave", stop);
