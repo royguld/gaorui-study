@@ -575,28 +575,57 @@
             p.materials ? "【教材范围与补充资料】\n" + p.materials.slice(0, 40000) : "",
             "",
             "【个性化要求（最重要）】",
-            "1. 薄弱科目（根据长短处、成绩偏差、成绩单照片判断）：多排知识点（3-5 个），status 标为“补差重点”，从孩子可能卡住的基础环节讲起，小测题每课 3-5 道。",
-            "2. 中等科目：2-3 个知识点，status 标为“需巩固”。",
-            "3. 优势科目：1-2 个知识点即可，status 标为“巩固拔高”，可以适当提高难度。",
-            "4. 每个知识点是一份能让孩子学 30 分钟的完整课件，必须包含：一句话讲清(oneLine)、4-6 节详细讲解(sections，每节 150-300 字，含概念讲解、2-3 道带完整解题过程的例题、常见错误剖析、小结)、生活例子(example)、3-4 个分步讲解(steps + narration)、关键词(terms)、易错提醒(mistake)、第二天复核任务(review)、5-8 个可考核的考点大纲(points，用于之后 AI 反复出题判定掌握度)、3 道基础选择题(quiz，离线备用)。",
+            "0. ⚠️ 篇幅控制（务必遵守，否则内容会被截断）：本次每科先只生成 2 个知识点（薄弱科目最多 3 个）作为起步；其余知识点孩子进入学习舱后可用“添加学习资料”随时继续生成。请确保输出的 JSON 完整、合法、能被解析。",
+            "1. 薄弱科目（根据长短处、成绩偏差、成绩单照片判断）：2-3 个知识点，status 标为“补差重点”，从孩子可能卡住的基础环节讲起。",
+            "2. 中等科目：2 个知识点，status 标为“需巩固”。",
+            "3. 优势科目：1 个知识点即可，status 标为“巩固拔高”。",
+            "4. 每个知识点是一份可学 20-30 分钟的课件，包含：一句话讲清(oneLine)、2-3 节讲解(sections，每节 120-200 字，含概念+1-2 道带过程的例题+易错提醒)、生活例子(example)、3 个分步讲解(steps + narration)、3-5 个关键词(terms)、易错提醒(mistake)、2 条第二天复核任务(review)、5-8 个可考核的考点大纲(points，用于之后 AI 反复出题判定掌握度)、3 道基础选择题(quiz，离线备用)。表述精炼，不要冗长铺陈。",
             "5. 小测答案下标从 0 开始且必须小于选项数，正确答案位置要随机分布。",
             "6. 不能胡编教材内容；不确定的表述要保守。",
-            "7. 每科 tasks 必须给满 5 条具体可操作的每日任务（标题+说明），贴合该科目和孩子情况。",
+            "7. 每科 tasks 给 3-5 条具体可操作的每日任务（标题+说明），贴合该科目和孩子情况。",
             "",
-            "请只返回 JSON，不要 Markdown，不要解释。结构：",
+            "请只返回 JSON，不要 Markdown，不要解释，不要在 JSON 之外写任何字。结构：",
             '{"subjects": {"math": {"label": "数学", "tasks": [["任务标题","任务说明"]], "lessons": [{"title": "知识点", "status": "补差重点", "oneLine": "...", "sections": [{"h": "小节标题", "text": "150-300字讲解"}], "example": "...", "steps": ["...","...","..."], "terms": [["关键词","解释"]], "mistake": "...", "narration": ["...","...","..."], "review": ["...","..."], "points": [{"id": "p1", "label": "考点名称"}], "quiz": [["题目",["A","B","C"],0]]}]}}}',
           ].filter(Boolean).join("\n");
         }
 
         /* ---------- JSON 清洗（与服务端同逻辑） ---------- */
-        function extractJson(text) {
-          text = String(text).trim();
-          text = text.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
-          try { return JSON.parse(text); } catch (e) {
-            var s = text.indexOf("{"), en = text.lastIndexOf("}");
-            if (s >= 0 && en > s) return JSON.parse(text.slice(s, en + 1));
-            throw new Error("不是合法 JSON，请确认复制了 AI 返回的完整内容");
+        /* 把可能被截断的片段补齐括号；截断在字符串内则返回 null（该切点不可用） */
+        function balanceJson(t) {
+          t = t.replace(/,\s*$/, "");
+          var inStr = false, esc = false, stack = [];
+          for (var i = 0; i < t.length; i++) {
+            var c = t[i];
+            if (inStr) { if (esc) esc = false; else if (c === "\\") esc = true; else if (c === '"') inStr = false; continue; }
+            if (c === '"') inStr = true;
+            else if (c === "{") stack.push("}");
+            else if (c === "[") stack.push("]");
+            else if (c === "}" || c === "]") { if (stack.length) stack.pop(); }
           }
+          if (inStr) return null;
+          var out = t;
+          for (var j = stack.length - 1; j >= 0; j--) out += stack[j];
+          return out;
+        }
+        function extractJson(text) {
+          text = String(text).trim().replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+          var s = text.indexOf("{");
+          if (s < 0) throw new Error("不是合法 JSON，请确认复制了 AI 返回的完整内容");
+          var body = text.slice(s);
+          try { return JSON.parse(body); } catch (e) { /* 尝试修复截断 */ }
+          var en = body.lastIndexOf("}");
+          if (en > 0) { try { return JSON.parse(body.slice(0, en + 1)); } catch (e2) { /* 继续 */ } }
+          // 从末尾逐个 “}” 回退，对截断处补齐括号后重试，尽量保住已生成完整的科目
+          var idx = body.length;
+          for (var attempt = 0; attempt < 600 && idx > 0; attempt++) {
+            idx = body.lastIndexOf("}", idx - 1);
+            if (idx < 0) break;
+            var closed = balanceJson(body.slice(0, idx + 1));
+            if (closed) { try { return JSON.parse(closed); } catch (e3) { /* 继续回退 */ } }
+          }
+          var err = new Error("TRUNCATED");
+          err.truncated = true;
+          throw err;
         }
         function cleanQuiz(q) {
           try {
@@ -775,8 +804,8 @@
           fetch(ai.endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: "Bearer " + ai.apiKey },
-            body: JSON.stringify({ model: model, temperature: 0.4, messages: [
-              { role: "system", content: "你只输出合法 JSON。" },
+            body: JSON.stringify({ model: model, temperature: 0.4, max_tokens: 8000, messages: [
+              { role: "system", content: "你只输出合法且完整的 JSON，不要在 JSON 之外写任何解释文字。" },
               { role: "user", content: content },
             ] }),
           }).then(function (r) {
@@ -785,17 +814,23 @@
               return d;
             });
           }).then(function (d) {
-            var data = normalize(extractJson(d.choices[0].message.content), p);
-            return buildPod(data);
-          }).then(function (built) {
-            offerResult(built);
-            setStatus("生成成功！下载后发给孩子即可使用。", "ok");
+            var raw = extractJson(d.choices[0].message.content);
+            var data = normalize(raw, p);
+            var n = Object.keys(data.subjects || data || {}).length;
+            return buildPod(data).then(function (built) { return { built: built, n: n }; });
+          }).then(function (res) {
+            offerResult(res.built);
+            setStatus("生成成功（共 " + res.n + " 个科目的起步课程）！下载发给孩子即可，其余知识点可在学习舱内“添加学习资料”继续生成。", "ok");
           }).catch(function (e) {
             var msg = String(e && e.message || e);
-            if (/Failed to fetch|NetworkError|CORS/i.test(msg)) {
-              setStatus("浏览器无法直连模型接口（可能被网络或跨域策略拦截）。请切换到“方式二”，复制提示词用任意 AI 中转，一样能生成。", "bad");
+            if (e && e.truncated) {
+              setStatus("科目太多，AI 一次生成的内容超长被截断了。请分两次生成：先减少这次加入的科目（比如只留 3-4 个最需要补的），生成后再回来加其余科目；或改用下面“方式二”。", "bad");
+            } else if (/Failed to fetch|NetworkError|CORS/i.test(msg)) {
+              setStatus("浏览器无法直连模型接口（可能被网络、VPN 或跨域策略拦截）。请关掉 VPN 重试，或切换到“方式二”复制提示词用任意 AI 中转。", "bad");
+            } else if (/没有可用课程|缺少 subjects|不是合法 JSON/.test(msg)) {
+              setStatus("AI 返回的内容不完整或被截断。请减少这次加入的科目数量后重试，或改用“方式二”。", "bad");
             } else {
-              setStatus("生成失败：" + msg, "bad");
+              setStatus("生成失败：" + msg + "。可减少科目数量重试，或改用“方式二”。", "bad");
             }
           }).finally(function () { $("genBtn").disabled = false; });
         });
