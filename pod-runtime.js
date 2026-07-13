@@ -125,7 +125,76 @@
     const time = loadJSON("time", {});
     time[key] = (time[key] || 0) + 30;
     saveJSON("time", time);
+    // 按科目累计当天时长，供家长报告分科统计
+    const timeSub = loadJSON("timeSub", {});
+    if (!timeSub[key]) timeSub[key] = {};
+    const sk = currentSubjectKey;
+    timeSub[key][sk] = (timeSub[key][sk] || 0) + 30;
+    saveJSON("timeSub", timeSub);
+    writeDailySnapshot();
   }, 30000);
+
+  /* ---------- 每日报告快照：把当天各科汇总冻结存档，防止日志滚动丢历史 ---------- */
+  function computeDailySnapshot(dateKey) {
+    const scores = loadJSON("scores", []).filter(function (s) { return s.date === dateKey; });
+    const log = loadJSON("log", []).filter(function (e) { return e.d === dateKey; });
+    const wrong = loadJSON("wrongBook", []).filter(function (w) { return w.date === dateKey; });
+    const timeSub = loadJSON("timeSub", {})[dateKey] || {};
+    const totalTime = loadJSON("time", {})[dateKey] || 0;
+    const quota = loadJSON("quota", {})[dateKey] || {};
+    const mastery = loadJSON("mastery", {});
+    // 分科聚合
+    const subs = {};
+    function ensure(label) { if (!subs[label]) subs[label] = { label: label, sec: 0, quizzes: 0, qGot: 0, qTotal: 0, mastered: 0, points: 0, pending: [], quiz: 0 }; return subs[label]; }
+    Object.keys(subjects).forEach(function (k) { ensure(subjects[k].label); });
+    // 时长(按科目key映射到label)
+    Object.keys(timeSub).forEach(function (k) {
+      const label = subjects[k] ? subjects[k].label : k;
+      ensure(label).sec += timeSub[k];
+    });
+    scores.forEach(function (s) {
+      const e = ensure(s.subjectLabel || s.subject);
+      e.quizzes++; e.qGot += s.score; e.qTotal += s.total;
+    });
+    Object.keys(quota).forEach(function (label) { ensure(label).quiz = quota[label]; });
+    Object.keys(mastery).forEach(function (k) {
+      const m = mastery[k];
+      if (!m.pointList) return;
+      const e = ensure(m.subjectLabel);
+      m.pointList.forEach(function (p) {
+        e.points++;
+        const st = (m.points || {})[p.id] || {};
+        if (st.mastered) e.mastered++;
+        else e.pending.push(m.lessonTitle + "·" + p.label);
+      });
+    });
+    const bySubject = Object.keys(subs).map(function (label) {
+      const e = subs[label];
+      return { label: label, sec: e.sec, quizzes: e.quizzes, pct: e.qTotal ? Math.round((e.qGot / e.qTotal) * 100) : null,
+        todayQuestions: e.quiz, mastered: e.mastered, points: e.points, pending: e.pending.slice(0, 20) };
+    }).filter(function (e) { return e.sec || e.quizzes || e.points || e.todayQuestions; });
+    return {
+      date: dateKey, totalSec: totalTime,
+      lessons: log.filter(function (e) { return e.type === "lesson_done"; }).length,
+      tasks: log.filter(function (e) { return e.type === "task"; }).length,
+      newWrong: wrong.length,
+      bySubject: bySubject,
+      updatedAt: Date.now(),
+    };
+  }
+  function writeDailySnapshot() {
+    try {
+      const dk = fmtDate(new Date());
+      const daily = loadJSON("daily", {});
+      daily[dk] = computeDailySnapshot(dk);
+      // 只保留最近 120 天
+      const keys = Object.keys(daily).sort();
+      while (keys.length > 120) { delete daily[keys.shift()]; }
+      saveJSON("daily", daily);
+    } catch (e) { /* 忽略 */ }
+  }
+  window.__computeDailySnapshot = computeDailySnapshot; // 供发送报告按钮复用
+  window.__writeDailySnapshot = writeDailySnapshot;
 
   /* ---------- 运行状态 ---------- */
 
@@ -1006,6 +1075,7 @@
       if (window.PodFX) window.PodFX.burst(60); // 🎉 学完一课，撒点彩带
     }
     saveJSON("completed", Array.from(completedLessons));
+    writeDailySnapshot();
     render();
   });
 

@@ -66,10 +66,28 @@
       .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
       @media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } }
       .table-scroll { overflow-x: auto; }
+      .act-btn { border: 1px solid var(--teal); background: #fff; color: #087872; border-radius: 7px; padding: 9px 14px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+      .act-btn.primary { background: var(--teal); color: #fff; }
+      .cfg { background: #fbfdff; border: 1px dashed #c8d9e8; border-radius: 8px; padding: 14px; margin-top: 6px; }
+      .cfg label { display: block; font-size: 12.5px; color: #33506b; margin-bottom: 4px; }
+      .cfg input { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 9px 11px; font: inherit; font-size: 13px; background: #fff; }
+      .cfg .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+      .cfg .hint { font-size: 12px; color: var(--muted); line-height: 1.7; margin: 8px 0 0; }
+      .cfg-msg { font-size: 12.5px; min-height: 16px; }
+      .cfg-msg.ok { color: var(--green); font-weight: 700; }
+      .cfg-msg.bad { color: var(--red); font-weight: 700; }
+      details.setup summary { cursor: pointer; font-weight: 700; color: #0b7c78; font-size: 13.5px; }
+      details.setup pre { background: #0f1e2e; color: #d6e6f5; border-radius: 8px; padding: 12px; overflow: auto; font-size: 11.5px; line-height: 1.6; }
+      @media print {
+        body { background: #fff; }
+        .no-print { display: none !important; }
+        .card { box-shadow: none; border-color: #ccc; break-inside: avoid; }
+      }
     </style>
   </head>
   <body>
     <script src="./auth.js"></script>
+    <script src="./report-lib.js"></script>
     <div class="wrap">
       <div class="top">
         <div class="brand">
@@ -90,8 +108,19 @@
       </div>
 
       <div class="card">
-        <h2><span id="sumTitle">汇总</span><button class="copy-btn" id="copyBtn" type="button">复制汇总文本</button></h2>
+        <h2><span id="sumTitle">汇总</span>
+          <span class="no-print" style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="act-btn" id="printBtn" type="button">🖨 导出/打印 PDF</button>
+            <button class="act-btn primary" id="sendBtn" type="button">📧 发送到家长邮箱</button>
+            <button class="copy-btn" id="copyBtn" type="button">复制汇总文本</button>
+          </span>
+        </h2>
         <div class="tiles" id="tiles"></div>
+      </div>
+
+      <div class="card" id="subjectCard">
+        <h2>分科目明细 <small>每科的学习时长 · 小测成绩 · 已/未掌握考点</small></h2>
+        <div class="table-scroll"><table id="subjectTable"></table></div>
       </div>
 
       <div class="card" id="tableCard">
@@ -117,6 +146,48 @@
         <div class="card">
           <h2>需要加强的课程 <small>最近一次小测正确率低于 60%</small></h2>
           <div id="weakLessons"></div>
+        </div>
+      </div>
+
+      <div class="card no-print">
+        <h2>📧 自动邮件设置 <small>一次性配置，之后孩子点“发送报告”即自动发到邮箱</small></h2>
+        <div class="cfg">
+          <label>邮件服务地址（Google Apps Script 部署后的 Web App 网址）</label>
+          <input id="hookInput" type="url" placeholder="https://script.google.com/macros/s/.../exec" />
+          <div class="row">
+            <button class="act-btn primary" id="saveHookBtn" type="button">保存</button>
+            <button class="act-btn" id="testHookBtn" type="button">发送一封测试报告</button>
+            <span class="cfg-msg" id="hookMsg"></span>
+          </div>
+          <p class="hint">报告会同时发送到 <strong>gaojh@chinanewbase.com</strong> 和 <strong>royguld@gmail.com</strong>（收件人在下面的脚本里设定，可改）。</p>
+          <details class="setup">
+            <summary>▶ 第一次设置：3 分钟部署你的免费邮件脚本（点开看步骤）</summary>
+            <ol style="font-size:13px;line-height:1.9;color:#33506b">
+              <li>用 <strong>royguld@gmail.com</strong> 登录，打开 <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a>，点“新建项目”。</li>
+              <li>把下面全部代码粘贴进去，覆盖原有内容，保存。</li>
+              <li>点右上角“部署” → “新建部署” → 类型选“Web 应用”；“执行身份”选<strong>我(你自己)</strong>；“谁可以访问”选<strong>任何人</strong> → 部署。</li>
+              <li>首次会要求授权，允许即可（脚本只用来替你发邮件）。</li>
+              <li>复制生成的 <strong>Web 应用网址</strong>（以 /exec 结尾），粘贴到上面输入框，点“保存”，再点“发送一封测试报告”验证。</li>
+            </ol>
+            <pre id="appsScriptCode">function doPost(e) {
+  var data = JSON.parse(e.postData.contents);
+  // 收件人：两个邮箱都发；想改就改这一行
+  var TO = "gaojh@chinanewbase.com, royguld@gmail.com";
+  var subject = data.subject || (data.childName + " 学习报告 " + data.date);
+  var html = data.html || "";
+  var pdf = Utilities.newBlob(
+    '&lt;meta charset="utf-8"&gt;' + html, "text/html", "report.html"
+  ).getAs("application/pdf").setName((data.childName || "孩子") + "-学习报告-" + data.date + ".pdf");
+  MailApp.sendEmail({
+    to: TO,
+    subject: subject,
+    htmlBody: html,
+    attachments: [pdf]
+  });
+  return ContentService.createTextOutput("ok");
+}</pre>
+            <p class="hint">脚本用你的 Gmail 发送，把网页报告转成 PDF 作为附件；不改代码就同时发给两个邮箱。收件方每天会收到一封带 PDF 附件的邮件。</p>
+          </details>
         </div>
       </div>
     </div>
@@ -162,7 +233,14 @@
         });
         function keyOf(child, k) {
           if (child.prefix) return child.prefix + k;
-          return { time: "grx:time", log: "grx:log", scores: "grx:scores", wrongBook: "grx:wrongBook", activeDays: "grx:activeDays", mastery: "grx:mastery", quota: "grx:quota" }[k];
+          return { time: "grx:time", log: "grx:log", scores: "grx:scores", wrongBook: "grx:wrongBook", activeDays: "grx:activeDays", mastery: "grx:mastery", quota: "grx:quota", timeSub: "grx:timeSub", daily: "grx:daily" }[k];
+        }
+        /* 该孩子的 科目key→中文名 映射 */
+        function subjectLabels(child) {
+          var m = {};
+          var kid = famKids.filter(function (c) { return c.podId === child.id; })[0];
+          if (kid && kid.subjects) Object.keys(kid.subjects).forEach(function (k) { m[k] = kid.subjects[k].label || k; });
+          return m;
         }
         var current = children[0];
         var urlChild = new URLSearchParams(location.search).get("child");
@@ -204,10 +282,68 @@
           return { rows: rows, sum: sum };
         }
 
+        /* ---------- 分科目聚合（时长/成绩/掌握） ---------- */
+        function subjectAgg(child, days) {
+          var labels = subjectLabels(child);
+          var timeSub = loadJSON(keyOf(child, "timeSub"), {});
+          var scores = loadJSON(keyOf(child, "scores"), []);
+          var quota = loadJSON(keyOf(child, "quota"), {});
+          var mastery = loadJSON(keyOf(child, "mastery"), {});
+          var todayStr = fmtLocal(new Date());
+          var subs = {};
+          function ensure(label) {
+            if (!subs[label]) subs[label] = { label: label, sec: 0, quizzes: 0, qGot: 0, qTotal: 0, todayQuestions: 0, mastered: 0, points: 0, pending: [] };
+            return subs[label];
+          }
+          Object.keys(labels).forEach(function (k) { ensure(labels[k]); });
+          days.forEach(function (d) {
+            var ts = timeSub[d] || {};
+            Object.keys(ts).forEach(function (k) { ensure(labels[k] || k).sec += ts[k]; });
+          });
+          scores.filter(function (s) { return days.indexOf(s.date) >= 0; }).forEach(function (s) {
+            var e = ensure(s.subjectLabel || s.subject);
+            e.quizzes++; e.qGot += s.score; e.qTotal += s.total;
+          });
+          var q = quota[todayStr] || {};
+          Object.keys(q).forEach(function (label) { ensure(label).todayQuestions = q[label]; });
+          Object.keys(mastery).forEach(function (mk) {
+            var m = mastery[mk];
+            if (!m.pointList) return;
+            var e = ensure(m.subjectLabel);
+            m.pointList.forEach(function (p) {
+              e.points++;
+              var st = (m.points || {})[p.id] || {};
+              if (st.mastered) e.mastered++;
+              else e.pending.push(m.lessonTitle + "·" + p.label + (st.wrong ? "(错" + st.wrong + ")" : ""));
+            });
+          });
+          return Object.keys(subs).map(function (l) {
+            var e = subs[l];
+            e.pct = e.qTotal ? Math.round((e.qGot / e.qTotal) * 100) : null;
+            return e;
+          }).filter(function (e) { return e.sec || e.quizzes || e.points || e.todayQuestions; });
+        }
+
         /* ---------- 渲染 ---------- */
         function pctHtml(pct) {
           if (pct === null) return "—";
           return '<span class="' + (pct < 60 ? "pct-low" : "pct-ok") + '">' + pct + "%</span>";
+        }
+        function renderSubjects(child, days) {
+          var list = subjectAgg(child, days);
+          if (!list.length) {
+            $("subjectTable").innerHTML = '<tr><td style="color:#8aa;padding:14px">该时段还没有分科目学习记录。</td></tr>';
+            return;
+          }
+          var html = "<tr><th>科目</th><th>学习时长</th><th>小测</th><th>正确率</th><th>今日题量</th><th>已掌握考点</th><th>未掌握考点</th></tr>";
+          list.forEach(function (e) {
+            html += "<tr><td style='font-weight:700'>" + esc(e.label) + "</td><td>" + fmtMin(e.sec) + "</td><td>" +
+              e.quizzes + "</td><td>" + pctHtml(e.pct) + "</td><td>" + (e.todayQuestions || 0) + "/90</td><td>" +
+              (e.points ? e.mastered + "/" + e.points : "—") + "</td><td style='color:#7a5410;font-size:12px'>" +
+              (e.pending.length ? esc(e.pending.slice(0, 10).join("；")) + (e.pending.length > 10 ? " 等" + e.pending.length + "个" : "") : "全部掌握") +
+              "</td></tr>";
+          });
+          $("subjectTable").innerHTML = html;
         }
         function render() {
           // 孩子选项卡
@@ -225,6 +361,7 @@
           var agg = aggregate(current, days);
           var label = rangeDays === 1 ? "今日" : "最近 " + rangeDays + " 天";
           $("sumTitle").textContent = current.name + " · " + label + "汇总";
+          renderSubjects(current, days);
           $("tiles").innerHTML =
             '<div class="tile"><span>学习时长</span><strong>' + fmtMin(agg.sum.sec) + "</strong></div>" +
             '<div class="tile"><span>小测次数</span><strong>' + agg.sum.quizzes + " 次</strong></div>" +
@@ -371,6 +508,48 @@
             document.body.removeChild(ta);
           }
         });
+
+        /* ---------- 导出/打印 PDF ---------- */
+        $("printBtn").addEventListener("click", function () { window.print(); });
+
+        /* ---------- 邮件端点配置 + 测试发送 ---------- */
+        function getHook() { try { return localStorage.getItem("family:reportHook") || ""; } catch (e) { return ""; } }
+        $("hookInput").value = getHook();
+        function cfgMsg(t, cls) { $("hookMsg").textContent = t; $("hookMsg").className = "cfg-msg" + (cls ? " " + cls : ""); }
+        $("saveHookBtn").addEventListener("click", function () {
+          var v = $("hookInput").value.trim();
+          if (v && !/^https:\/\/script\.google\.com\/.+\/exec$/.test(v) && !/^https:\/\/.+/.test(v)) {
+            cfgMsg("请粘贴以 https:// 开头、/exec 结尾的 Web 应用网址。", "bad"); return;
+          }
+          try { localStorage.setItem("family:reportHook", v); cfgMsg(v ? "已保存。孩子点“发送报告”就会自动发到邮箱了。" : "已清空。", "ok"); }
+          catch (e) { cfgMsg("保存失败：浏览器存储不可用。", "bad"); }
+        });
+        function snapForSend(child, dateStr) {
+          // 优先用运行时写入的当日快照；没有就用分科聚合现算一份
+          var daily = loadJSON(keyOf(child, "daily"), {})[dateStr];
+          if (daily) return daily;
+          var list = subjectAgg(child, [dateStr]);
+          var agg = aggregate(child, [dateStr]);
+          return { date: dateStr, totalSec: agg.sum.sec, lessons: agg.sum.lessons, tasks: agg.sum.tasks, newWrong: agg.sum.newWrong, bySubject: list };
+        }
+        function sendFor(child, isTest) {
+          if (!window.ReportLib) { cfgMsg("报告组件未加载。", "bad"); return; }
+          var hook = getHook();
+          if (!hook) { cfgMsg("请先保存邮件服务地址（展开下面的设置步骤）。", "bad"); return; }
+          var dk = fmtLocal(new Date());
+          var snap = snapForSend(child, dk);
+          var html = window.ReportLib.buildReportHTML(child.name, snap);
+          cfgMsg("正在发送...");
+          window.ReportLib.sendReport(hook, {
+            childName: child.name, date: dk,
+            subject: (isTest ? "[测试] " : "") + child.name + " 今日学习报告 " + dk,
+            html: html, text: window.ReportLib.buildReportText(child.name, snap),
+          }).then(function () {
+            cfgMsg("✓ 已发送（发往 gaojh@chinanewbase.com 和 royguld@gmail.com），请查收邮箱。", "ok");
+          }).catch(function (e) { cfgMsg("发送失败：" + e.message, "bad"); });
+        }
+        $("testHookBtn").addEventListener("click", function () { sendFor(current, true); });
+        $("sendBtn").addEventListener("click", function () { sendFor(current, false); });
 
         render();
       })();

@@ -32,6 +32,11 @@
       .sidebar-link:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
       .missing { padding: 60px 24px; text-align: center; font-family: inherit; }
       .missing a { color: #0f9f9a; }
+      #sendReportBtn { background: rgba(15,159,154,0.22); border-color: rgba(15,159,154,0.5); color: #d6fff2; font-weight: 700; }
+      #sendReportBtn:hover { background: rgba(15,159,154,0.34); color: #fff; }
+      .send-msg { margin: 2px 2px 0; font-size: 12px; color: #cfe3f5; min-height: 14px; line-height: 1.5; }
+      .send-msg.ok { color: #9be7c8; font-weight: 700; }
+      .send-msg.bad { color: #ffc9bf; font-weight: 700; }
     </style>
   </head>
   <body>
@@ -50,6 +55,8 @@
         <a class="sidebar-link" href="./home.html">⇄ 切换孩子 · 返回起始页</a>
         <a class="sidebar-link" id="reportLink" href="./report.html">学习报告 · 给家长看</a>
         <a class="sidebar-link" id="addMaterialBtn" href="javascript:void(0)">＋ 添加学习资料 · 自动生成课程</a>
+        <a class="sidebar-link" id="sendReportBtn" href="javascript:void(0)">📤 学完了，发送今日报告给家长</a>
+        <p class="send-msg" id="sendMsg"></p>
         <a class="sidebar-link" href="./guide.html#kid">📖 使用说明书</a>
 
         <div class="sidebar-note">
@@ -325,7 +332,54 @@
         });
       })();
     </script>
+    <script src="./report-lib.js"></script>
     <script src="./quiz-engine.js"></script>
     <script src="./pod-runtime.js"></script>
+    <script>
+      /* 孩子点“发送今日报告给家长”：生成报告并发送到家长邮箱，孩子看不到报告内容 */
+      (function () {
+        "use strict";
+        var id = new URLSearchParams(location.search).get("child");
+        var kids = [];
+        try { kids = JSON.parse(localStorage.getItem("family:children") || "[]"); } catch (e) { /* 忽略 */ }
+        var child = null;
+        for (var i = 0; i < kids.length; i++) { if (kids[i].podId === id) { child = kids[i]; break; } }
+        var btn = document.getElementById("sendReportBtn");
+        var msg = document.getElementById("sendMsg");
+        if (!btn || !child) return;
+        function setMsg(t, cls) { if (msg) { msg.textContent = t; msg.className = "send-msg" + (cls ? " " + cls : ""); } }
+        btn.addEventListener("click", function () {
+          if (!window.ReportLib || !window.__computeDailySnapshot) { setMsg("报告组件还在加载，请稍等两秒再点。", "bad"); return; }
+          try { if (window.__writeDailySnapshot) window.__writeDailySnapshot(); } catch (e) { /* 忽略 */ }
+          var today = new Date();
+          var dk = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+          var snap = window.__computeDailySnapshot(dk);
+          var name = child.student.name || "孩子";
+          var html = window.ReportLib.buildReportHTML(name, snap);
+          var text = window.ReportLib.buildReportText(name, snap);
+          var hook = "";
+          try { hook = localStorage.getItem("family:reportHook") || ""; } catch (e) { /* 忽略 */ }
+          // 记一笔日志
+          try {
+            var log = JSON.parse(localStorage.getItem(child.podId + ":log") || "[]");
+            log.push({ t: Date.now(), d: dk, type: "report_sent", detail: "发送今日学习报告给家长" });
+            localStorage.setItem(child.podId + ":log", JSON.stringify(log));
+          } catch (e) { /* 忽略 */ }
+          if (!hook) {
+            setMsg("✓ 今日报告已生成并保存，家长在“报告”页即可查看。", "ok");
+            return;
+          }
+          btn.style.pointerEvents = "none";
+          setMsg("正在发送给家长...");
+          window.ReportLib.sendReport(hook, {
+            childName: name, date: dk, subject: name + " 今日学习报告 " + dk, html: html, text: text,
+          }).then(function () {
+            setMsg("✓ 已发送给家长的邮箱，做得好！", "ok");
+          }).catch(function (e) {
+            setMsg("发送遇到问题：" + e.message + "。报告已保存，家长也能在报告页查看。", "bad");
+          }).finally(function () { btn.style.pointerEvents = ""; });
+        });
+      })();
+    </script>
   </body>
 </html>
