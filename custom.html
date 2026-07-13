@@ -311,11 +311,21 @@
           var grade = pack.grades[gradeKey];
           var lines = ["===== 教材包：" + pack.meta.name + " / " + gradeKey + " =====", "说明：" + pack.meta.note, ""];
           grade.subjects.forEach(function (s) {
-            lines.push("- " + s.name + "｜册别：" + s.books.join("、") + "｜重点：" + s.focus.join("、"));
+            lines.push("【" + s.name + "】册别：" + s.books.join("、"));
+            lines.push("　学习重点：" + s.focus.join("、"));
+            if (s.chapters) {
+              Object.keys(s.chapters).forEach(function (bk) {
+                lines.push("　" + bk + " 章节：" + s.chapters[bk].join("；"));
+              });
+            }
+            if (s.resources && s.resources.length) {
+              lines.push("　推荐辅导资料：" + s.resources.join("、"));
+            }
+            lines.push("");
           });
           $("pMaterials").value += ($("pMaterials").value ? "\n\n" : "") + lines.join("\n");
           $("pMaterials").dispatchEvent(new Event("input"));
-          setStatus("已加入 " + gradeKey + " 教材包。", "ok");
+          setStatus("已加入 " + gradeKey + " 教材包（" + grade.subjects.length + " 个科目，含分册章节和教辅推荐）。", "ok");
         });
         loadPacks();
 

@@ -85,6 +85,12 @@
       .subject-card h3 { margin: 0 0 6px; font-size: 16px; }
       .books { color: var(--muted); font-size: 12.5px; margin: 0 0 10px; line-height: 1.5; }
       .focus { display: flex; flex-wrap: wrap; gap: 6px; }
+      .chapters { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+      .chapters details { background: #f6f9fc; border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; }
+      .chapters summary { cursor: pointer; font-size: 13px; font-weight: 700; color: #0b7c78; }
+      .chapters ul { margin: 8px 0 0; padding-left: 18px; }
+      .chapters li { font-size: 12.5px; color: #46617c; line-height: 1.7; }
+      .resources { margin: 10px 0 0; font-size: 12.5px; color: #7a5410; background: #fff7e9; border-radius: 7px; padding: 8px 11px; line-height: 1.6; }
       .focus span {
         background: var(--teal-soft); color: #087872; border-radius: 6px;
         padding: 4px 9px; font-size: 12.5px;
@@ -164,6 +170,14 @@
             lines.push("- " + s.name);
             lines.push("  教材册别：" + s.books.join("、"));
             lines.push("  学习重点：" + s.focus.join("、"));
+            if (s.chapters) {
+              Object.keys(s.chapters).forEach(function (bk) {
+                lines.push("  " + bk + " 章节：" + s.chapters[bk].join("；"));
+              });
+            }
+            if (s.resources && s.resources.length) {
+              lines.push("  推荐辅导资料：" + s.resources.join("、"));
+            }
           });
           lines.push("");
           lines.push("生成要求：请结合上述年级课程分类，为孩子生成各科知识点课件、小测题、第二天复核任务；如家长另有学校作业或错题资料，以家长资料优先。");
@@ -199,10 +213,20 @@
           gradeTitle.textContent = currentGrade + " · " + grade.subjects.length + " 个科目";
           copyBtn.hidden = false;
           subjectGrid.innerHTML = grade.subjects.map(function (s) {
+            var chapHtml = "";
+            if (s.chapters) {
+              chapHtml = '<div class="chapters">' + Object.keys(s.chapters).map(function (bk) {
+                return '<details><summary>' + esc(bk) + " · " + s.chapters[bk].length + " 章</summary><ul>" +
+                  s.chapters[bk].map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("") + "</ul></details>";
+              }).join("") + "</div>";
+            }
+            var resHtml = (s.resources && s.resources.length)
+              ? '<p class="resources">📘 推荐教辅：' + s.resources.map(esc).join("、") + "</p>" : "";
             return (
               '<div class="subject-card"><h3>' + esc(s.name) + "</h3>" +
               '<p class="books">册别：' + esc(s.books.join("、")) + "</p>" +
-              '<div class="focus">' + s.focus.map(function (f) { return "<span>" + esc(f) + "</span>"; }).join("") + "</div></div>"
+              '<div class="focus">' + s.focus.map(function (f) { return "<span>" + esc(f) + "</span>"; }).join("") + "</div>" +
+              chapHtml + resHtml + "</div>"
             );
           }).join("");
           metaNote.textContent = pack.meta.name + " · " + pack.meta.note;
