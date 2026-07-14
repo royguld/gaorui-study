@@ -419,14 +419,22 @@
     const cfg = podAIConfig();
     if (!cfg || !window.PodAI) return null;
     aiTaskPending[subjectKey] = true;
-    window.PodAI.callJson(cfg, buildTaskPrompt(subject, subjectKey)).then(function (raw) {
+    // 超时保护：网络不通时别让角标一直卡在“正在定制”
+    const timeout = new Promise(function (_, reject) {
+      setTimeout(function () { reject(new Error("生成任务超时")); }, 45000);
+    });
+    Promise.race([window.PodAI.callJson(cfg, buildTaskPrompt(subject, subjectKey)), timeout]).then(function (raw) {
       aiTaskPending[subjectKey] = false;
       const list = (raw.tasks || []).slice(0, 4).map(function (t) {
         if (Array.isArray(t) && t.length >= 2 && t[0]) return [String(t[0]).slice(0, 20), String(t[1]).slice(0, 140)];
         if (t && typeof t === "object" && t.title) return [String(t.title).slice(0, 20), String(t.detail || t.desc || "").slice(0, 140)];
         return null;
       }).filter(Boolean);
-      if (!list.length) { aiTaskFailed[subjectKey] = true; return; }
+      if (!list.length) {
+        aiTaskFailed[subjectKey] = true;
+        if (currentSubjectKey === subjectKey) renderTasks(subjects[subjectKey]);
+        return;
+      }
       const s2 = loadJSON("aiTasks", {});
       if (!s2[dk]) s2[dk] = {};
       s2[dk][subjectKey] = list;
@@ -435,8 +443,10 @@
       logEvent("ai_tasks", subject.label + "：AI 按错题生成今日任务 " + list.length + " 条");
       if (currentSubjectKey === subjectKey) renderTasks(subjects[subjectKey]);
     }).catch(function () {
+      // 网络不通/接口报错：静默回退到每日轮换任务，并把角标恢复正常
       aiTaskPending[subjectKey] = false;
       aiTaskFailed[subjectKey] = true;
+      if (currentSubjectKey === subjectKey) renderTasks(subjects[subjectKey]);
     });
     return null;
   }
