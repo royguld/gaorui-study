@@ -323,26 +323,57 @@
     saveJSON("tasks", tasksState);
   }
 
-  /* 每日任务补齐到 5 个：科目自带任务在前，不足的用通用学习任务补足 */
-  const GENERIC_TASKS = [
+  /* ---------- 每日任务：每天自动变化 ----------
+   * 第 1 条永远是“今日主线”，绑定闯关地图上“今日建议”的那一关（学完就自动换成下一关）；
+   * 其余 4 条从任务池里按当天日期轮换，天天不重样。 */
+  const TASK_POOL = [
     ["AI 小测一轮", "完成一轮 15 道的 AI 小测，做错的题点开听老师讲解。"],
     ["错题复核", "把复核队列里的错题重做一遍，能说出错在哪才算过。"],
     ["开口讲一讲", "把今天学的知识点讲给家长听 1 分钟，讲得清才算真会。"],
-    ["朗读课文", "把本课的课文和生活例子大声朗读一遍。"],
+    ["朗读课文", "点“朗读讲解”跟着老师念一遍，或自己大声读课文和生活例子。"],
     ["预习下一关", "打开闯关地图的下一个知识点，先把概念看一遍。"],
+    ["看图解动画课", "点“🎬 图解动画课”，跟着 5 幕动画把今天的知识点再过一遍。"],
+    ["语音作答练习", "小测的简答题用“🎤 按住说话”作答，练习把思路讲清楚。"],
+    ["考点自查", "对着闯关地图上的考点清单，逐条问自己“我能讲明白吗”。"],
+    ["限时挑战", "给自己计时 10 分钟，看能不能做完一轮小测且正确率过 80%。"],
+    ["整理笔记", "把今天的关键词和易错提醒抄到笔记本上，明早再看一眼。"],
   ];
-  function fullTasks(subject) {
-    const t = (subject.tasks || []).slice(0, 5).map(function (x) { return [String(x[0]), String(x[1])]; });
-    for (let i = 0; t.length < 5 && i < GENERIC_TASKS.length; i++) {
-      const g = GENERIC_TASKS[i];
-      if (!t.some(function (x) { return x[0] === g[0]; })) t.push(g);
+  /* 当天的日期序号（本地时区），用于每日轮换 */
+  function dayNumber() {
+    return Math.floor((today.getTime() - today.getTimezoneOffset() * 60000) / 86400000);
+  }
+  /* 该科目第一个没学完的关卡 = 今日建议 */
+  function firstIncomplete(subjectKey, subject) {
+    for (let i = 0; i < subject.lessons.length; i++) {
+      if (!completedLessons.has(lessonKey(subjectKey, i))) return i;
     }
-    return t;
+    return -1;
+  }
+  function fullTasks(subject, subjectKey) {
+    const out = [];
+    const ti = firstIncomplete(subjectKey, subject);
+    if (ti >= 0) {
+      const l = subject.lessons[ti];
+      out.push([
+        "今日主线 · " + l.title,
+        "学完第 " + (ti + 1) + " 关《" + l.title + "》：看讲解 → 点“标记已学” → 做一轮 AI 小测。",
+      ]);
+    } else {
+      out.push(["复习巩固", "本科所有关卡都通关啦！挑一个还没掌握的考点，再做一轮小测。"]);
+    }
+    // 科目自带任务 + 通用任务池，按当天日期轮换
+    const rest = (subject.tasks || []).map(function (x) { return [String(x[0]), String(x[1])]; }).concat(TASK_POOL);
+    const start = rest.length ? (dayNumber() % rest.length) : 0;
+    for (let i = 0; out.length < 5 && i < rest.length; i++) {
+      const t = rest[(start + i) % rest.length];
+      if (!out.some(function (x) { return x[0] === t[0]; })) out.push(t);
+    }
+    return out;
   }
 
   function renderTasks(subject) {
     const checked = getTodayTaskState(currentSubjectKey);
-    const tasks = fullTasks(subject);
+    const tasks = fullTasks(subject, currentSubjectKey);
     taskList.innerHTML = tasks
       .map(function (task, index) {
         const isDone = checked.indexOf(index) !== -1;
@@ -383,10 +414,7 @@
     const doneCount = subject.lessons.filter(function (_, i) { return completedLessons.has(lessonKey(subjectKey, i)); }).length;
     subjectSummary.textContent = subject.label + " · 共 " + subject.lessons.length + " 关 · 已通 " + doneCount + " 关";
     // 每日安排：按由易到难的课程顺序，第一个未学完的就是今天建议学的
-    let todayIndex = -1;
-    for (let i = 0; i < subject.lessons.length; i++) {
-      if (!completedLessons.has(lessonKey(subjectKey, i))) { todayIndex = i; break; }
-    }
+    const todayIndex = firstIncomplete(subjectKey, subject);
     const masteryMap = loadJSON("mastery", {});
     questMap.innerHTML = subject.lessons
       .map(function (lesson, index) {
