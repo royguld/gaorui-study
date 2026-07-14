@@ -667,8 +667,11 @@
         var fileInput = box.querySelector(".qe-photo-file");
         var photoQi = -1;
 
+        // 麦克风只能在 HTTPS 或 localhost 下用（浏览器安全限制）。
+        // iPad 通过 http://电脑IP 访问局域网时不是安全上下文，直接隐藏按钮，避免点了报错。
+        var micUsable = SR && (window.isSecureContext !== false);
         Array.prototype.forEach.call(box.querySelectorAll(".qe-mic"), function (btn) {
-          if (!SR) { btn.hidden = true; return; }
+          if (!micUsable) { btn.hidden = true; return; }
           var qi = Number(btn.dataset.q);
           var ta = box.querySelector('textarea[data-a="' + qi + '"]');
           var rec = null, finalTxt = "", interimTxt = "", base = "", endGuard = null;
