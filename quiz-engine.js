@@ -158,6 +158,15 @@
     });
   }
 
+  /* 网络类错误（最常见原因：开着 VPN 导致连不上国内的通义接口） */
+  function netHint(msg) {
+    var m = String(msg && msg.message ? msg.message : msg);
+    if (/failed to fetch|networkerror|load failed|timeout|超时/i.test(m)) {
+      return "连不上 AI 服务器 🔌 —— 如果电脑开着 VPN / 加速器，请先关掉再点一次（通义的接口在国内，开 VPN 反而连不上）。";
+    }
+    return m;
+  }
+
   /* 把供应商的英文报错翻译成家长能看懂的提示 */
   function friendlyError(msg, status) {
     var m = String(msg);
@@ -904,7 +913,7 @@
           renderQuestions();
         }).catch(function (e) {
           busy = false;
-          ctx.els.box.innerHTML = '<p class="qe-error">出题失败：' + esc(e.message) + "</p>";
+          ctx.els.box.innerHTML = '<p class="qe-error">出题失败：' + esc(netHint(e)) + "</p>";
           ctx.els.actionBtn.hidden = false;
           ctx.els.actionBtn.textContent = "重试出题";
         });
@@ -966,7 +975,7 @@
           applyGrades(results);
         }).catch(function (e) {
           busy = false;
-          setResult("批改失败：" + e.message + "。请点按钮重试提交。", "bad");
+          setResult("批改失败：" + netHint(e) + "。请点按钮重试提交。", "bad");
           ctx.els.actionBtn.hidden = false;
           ctx.els.actionBtn.textContent = "重试提交";
         });
