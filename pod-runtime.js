@@ -349,6 +349,98 @@
     }
     return -1;
   }
+  /* ---------- 🤖 AI 每日定制任务：每天早上按昨天的错题现生成 ---------- */
+  function podAIConfig() {
+    let ai = null;
+    if (learningData.ai && learningData.ai.apiKey) ai = learningData.ai;
+    else if (learningData.apiKey) ai = { apiKey: learningData.apiKey, model: learningData.model || "qwen-plus", endpoint: "" };
+    else {
+      try {
+        const c = JSON.parse(localStorage.getItem("family:aiConfig") || "null");
+        if (c && c.apiKey) ai = c;
+        else { const k = localStorage.getItem("family:apiKey"); if (k) ai = { apiKey: k, model: "qwen-plus", endpoint: "" }; }
+      } catch (e) { /* 忽略 */ }
+    }
+    if (!ai || !ai.apiKey) return null;
+    return { apiKey: ai.apiKey, model: ai.model || "qwen-plus", endpoint: ai.endpoint || "", grade: student.grade || "" };
+  }
+  const aiTaskPending = {};
+  const aiTaskFailed = {};
+  function yesterdayKey() {
+    const d = new Date(today);
+    d.setDate(d.getDate() - 1);
+    return fmtDate(d);
+  }
+  function buildTaskPrompt(subject, subjectKey) {
+    const yk = yesterdayKey();
+    const label = subject.label;
+    const wrongAll = loadJSON("wrongBook", []).filter(function (w) { return w.subjectLabel === label; });
+    const wrongY = wrongAll.filter(function (w) { return w.date === yk; });
+    const wrongUse = (wrongY.length ? wrongY : wrongAll).slice(-6);
+    const scoresY = loadJSON("scores", []).filter(function (s) { return s.date === yk && (s.subjectLabel || s.subject) === label; });
+    let got = 0, tot = 0;
+    scoresY.forEach(function (s) { got += s.score; tot += s.total; });
+    const pct = tot ? Math.round((got / tot) * 100) : null;
+    const mastery = loadJSON("mastery", {});
+    const pending = [];
+    Object.keys(mastery).forEach(function (k) {
+      const m = mastery[k];
+      if (m.subjectLabel !== label || !m.pointList) return;
+      m.pointList.forEach(function (p) {
+        const st = (m.points || {})[p.id] || {};
+        if (!st.mastered) pending.push(m.lessonTitle + "·" + p.label + (st.wrong ? "(错" + st.wrong + "次)" : ""));
+      });
+    });
+    const ti = firstIncomplete(subjectKey, subject);
+    const lessonTitle = ti >= 0 ? subject.lessons[ti].title : "该科已全部通关";
+    return (
+      "你是" + (student.grade || "中小学") + "学生" + (student.name || "孩子") + "的学习教练。请为他安排今天【" + label + "】的 4 条学习任务。\n" +
+      "今天要学的知识点：《" + lessonTitle + "》\n" +
+      (pct === null ? "昨天这科没有小测记录。\n" : "昨天这科小测正确率：" + pct + "%。\n") +
+      (wrongUse.length
+        ? "他做错过的题（要针对这些设计任务）：\n" + wrongUse.map(function (w) { return "· " + w.question + "（正确答案：" + w.correct + "，他答：" + w.chosen + "）"; }).join("\n") + "\n"
+        : "暂时没有错题记录。\n") +
+      (pending.length ? "还没掌握的考点：" + pending.slice(0, 8).join("；") + "\n" : "") +
+      "\n要求：\n" +
+      "1. 每条任务 10-25 分钟内能完成，具体到做什么、怎样算完成，不要空话。\n" +
+      "2. 至少 2 条要直接针对上面的错题或未掌握考点（点名是哪个知识点/哪类题）。\n" +
+      "3. 语气像教练对孩子说话，亲切、有干劲，不要说教。\n" +
+      "4. 标题不超过 10 个字；说明 20-45 字。\n" +
+      "5. 不要安排“学完《" + lessonTitle + "》”这条（已有单独的主线任务）。\n" +
+      '只返回 JSON：{"tasks":[["任务标题","任务说明"],["...","..."],["...","..."],["...","..."]]}'
+    );
+  }
+  /* 返回今天该科的 AI 任务；没有就后台生成一次，好了自动刷新 */
+  function ensureAiTasks(subject, subjectKey) {
+    const dk = fmtDate(today);
+    const store = loadJSON("aiTasks", {});
+    if (store[dk] && store[dk][subjectKey]) return store[dk][subjectKey];
+    if (aiTaskPending[subjectKey] || aiTaskFailed[subjectKey]) return null;
+    const cfg = podAIConfig();
+    if (!cfg || !window.PodAI) return null;
+    aiTaskPending[subjectKey] = true;
+    window.PodAI.callJson(cfg, buildTaskPrompt(subject, subjectKey)).then(function (raw) {
+      aiTaskPending[subjectKey] = false;
+      const list = (raw.tasks || []).slice(0, 4).map(function (t) {
+        if (Array.isArray(t) && t.length >= 2 && t[0]) return [String(t[0]).slice(0, 20), String(t[1]).slice(0, 140)];
+        if (t && typeof t === "object" && t.title) return [String(t.title).slice(0, 20), String(t.detail || t.desc || "").slice(0, 140)];
+        return null;
+      }).filter(Boolean);
+      if (!list.length) { aiTaskFailed[subjectKey] = true; return; }
+      const s2 = loadJSON("aiTasks", {});
+      if (!s2[dk]) s2[dk] = {};
+      s2[dk][subjectKey] = list;
+      Object.keys(s2).sort().slice(0, -7).forEach(function (k) { delete s2[k]; }); // 只留最近 7 天
+      saveJSON("aiTasks", s2);
+      logEvent("ai_tasks", subject.label + "：AI 按错题生成今日任务 " + list.length + " 条");
+      if (currentSubjectKey === subjectKey) renderTasks(subjects[subjectKey]);
+    }).catch(function () {
+      aiTaskPending[subjectKey] = false;
+      aiTaskFailed[subjectKey] = true;
+    });
+    return null;
+  }
+
   function fullTasks(subject, subjectKey) {
     const out = [];
     const ti = firstIncomplete(subjectKey, subject);
@@ -361,12 +453,25 @@
     } else {
       out.push(["复习巩固", "本科所有关卡都通关啦！挑一个还没掌握的考点，再做一轮小测。"]);
     }
-    // 科目自带任务 + 通用任务池，按当天日期轮换
+    // 优先用 AI 按昨天错题定制的今日任务
+    const aiList = ensureAiTasks(subject, subjectKey);
+    let usedAI = false;
+    if (aiList && aiList.length) {
+      aiList.forEach(function (t) {
+        if (out.length < 5 && !out.some(function (x) { return x[0] === t[0]; })) { out.push(t); usedAI = true; }
+      });
+    }
+    // 不足 5 条时，用科目自带任务 + 通用任务池按当天日期轮换补齐
     const rest = (subject.tasks || []).map(function (x) { return [String(x[0]), String(x[1])]; }).concat(TASK_POOL);
     const start = rest.length ? (dayNumber() % rest.length) : 0;
     for (let i = 0; out.length < 5 && i < rest.length; i++) {
       const t = rest[(start + i) % rest.length];
       if (!out.some(function (x) { return x[0] === t[0]; })) out.push(t);
+    }
+    // 面板角标：让孩子知道今天的任务是 AI 现给的
+    const tag = document.querySelector(".today-panel .section-title span");
+    if (tag) {
+      tag.textContent = usedAI ? "🤖 AI 按昨天错题定制" : (aiTaskPending[subjectKey] ? "🤖 AI 正在定制今日任务..." : "完成后点亮");
     }
     return out;
   }
